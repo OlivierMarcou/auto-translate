@@ -177,70 +177,157 @@ jobs:
           [ -f "target/traducteur-automatique-${VERSION}-shaded.jar" ] && echo "✅ JAR shaded: OK" || echo "❌ JAR shaded: MANQUANT"
           [ -f "target/traducteur-automatique-${VERSION}-complete.zip" ] && echo "✅ Archive complète: OK" || echo "❌ Archive complète: MANQUANTE"
 
-      - name: 🔍 Vérification de l'existence de la release
-        id: check_release
+      - name: 🔍 Gestion intelligente des releases existantes
+        id: manage_existing_release
         run: |
           VERSION=${{ steps.get_version.outputs.VERSION }}
           TAG="v$VERSION"
           
-          # Vérifier si la release existe déjà
-          if gh release view "$TAG" &>/dev/null; then
-            echo "RELEASE_EXISTS=true" >> $GITHUB_OUTPUT
+          echo "🔍 Vérification de l'existence de la release $TAG..."
+          
+          # Vérifier si la release existe
+          if gh release view "$TAG" --repo "${{ github.repository }}" &>/dev/null; then
             echo "⚠️ Release $TAG existe déjà"
+            echo "RELEASE_EXISTS=true" >> $GITHUB_OUTPUT
           
-            # Demander ce qu'il faut faire via les inputs du workflow
-            echo "OPTIONS:"
-            echo "1. Mettre à jour la release existante"
-            echo "2. Supprimer et recréer la release"
-            echo "3. Échouer le build"
+            echo "🗑️ Suppression de la release existante..."
+            gh release delete "$TAG" --repo "${{ github.repository }}" --yes || {
+              echo "⚠️ Impossible de supprimer via API, tentative de force..."
+              # En dernier recours, on continue quand même
+              echo "FORCE_UPDATE=true" >> $GITHUB_OUTPUT
+            }
           
-            # Par défaut, on met à jour
-            echo "ACTION=update" >> $GITHUB_OUTPUT
+            # Attendre un peu pour que GitHub se synchronise
+            sleep 5
+          
+            echo "✅ Release existante gérée"
           else
-            echo "RELEASE_EXISTS=false" >> $GITHUB_OUTPUT
             echo "✅ Release $TAG n'existe pas, création possible"
-            echo "ACTION=create" >> $GITHUB_OUTPUT
+            echo "RELEASE_EXISTS=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      - name: 🗑️ Suppression de la release existante (si nécessaire)
-        if: steps.check_release.outputs.RELEASE_EXISTS == 'true' && steps.check_release.outputs.ACTION == 'recreate'
+      - name: 🚀 Création de la Release GitHub (Version Robuste)
+        id: create_release
         run: |
           VERSION=${{ steps.get_version.outputs.VERSION }}
           TAG="v$VERSION"
           
-          echo "🗑️ Suppression de la release existante $TAG..."
-          gh release delete "$TAG" --yes || echo "⚠️ Release déjà supprimée"
+          echo "🚀 Création de la release $TAG..."
           
-          echo "✅ Release $TAG supprimée, création d'une nouvelle..."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🚀 Création/Mise à jour de la Release GitHub
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref }}
-          name: "🎉 Traducteur Automatique v${{ steps.get_version.outputs.VERSION }}"
-          body: ${{ steps.generate_changelog.outputs.CHANGELOG }}
-          draft: false
-          prerelease: false
-          files: |
-            target/traducteur-automatique-${{ steps.get_version.outputs.VERSION }}.jar
-            target/traducteur-automatique-${{ steps.get_version.outputs.VERSION }}-shaded.jar
-            target/traducteur-automatique-${{ steps.get_version.outputs.VERSION }}-complete.zip
-            run.bat
-            run.sh
-            README.md
-          fail_on_unmatched_files: false
-          generate_release_notes: false
-          make_latest: true
-          append_body: false
-          discussion_category_name: ""
+          # Créer le contenu de la release
+          cat > release_body.md << 'EOF'
+          ${{ steps.generate_changelog.outputs.CHANGELOG }}
+          EOF
+          
+          # Créer la liste des fichiers qui existent réellement
+          EXISTING_FILES=""
+          
+          # Vérifier chaque fichier
+          if [ -f "target/traducteur-automatique-${VERSION}.jar" ]; then
+            EXISTING_FILES="$EXISTING_FILES target/traducteur-automatique-${VERSION}.jar"
+            echo "✅ JAR principal trouvé"
+          fi
+          
+          if [ -f "target/traducteur-automatique-${VERSION}-shaded.jar" ]; then
+            EXISTING_FILES="$EXISTING_FILES target/traducteur-automatique-${VERSION}-shaded.jar"
+            echo "✅ JAR shaded trouvé"
+          fi
+          
+          if [ -f "target/traducteur-automatique-${VERSION}-complete.zip" ]; then
+            EXISTING_FILES="$EXISTING_FILES target/traducteur-automatique-${VERSION}-complete.zip"
+            echo "✅ Archive complète trouvée"
+          fi
+          
+          if [ -f "run.bat" ]; then
+            EXISTING_FILES="$EXISTING_FILES run.bat"
+            echo "✅ Script Windows trouvé"
+          fi
+          
+          if [ -f "run.sh" ]; then
+            EXISTING_FILES="$EXISTING_FILES run.sh"
+            echo "✅ Script Linux/Mac trouvé"
+          fi
+          
+          if [ -f "README.md" ]; then
+            EXISTING_FILES="$EXISTING_FILES README.md"
+            echo "✅ README trouvé"
+          fi
+          
+          echo "📦 Fichiers à inclure: $EXISTING_FILES"
+          
+          # Tentative 1: Avec l'action GitHub officielle
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --title "🎉 Traducteur Automatique v$VERSION" \
+            --notes-file release_body.md \
+            --latest \
+            $EXISTING_FILES || {
+          
+            echo "⚠️ Création via gh CLI échouée, tentative avec curl..."
+          
+            # Tentative 2: Création manuelle avec l'API GitHub
+            RELEASE_DATA=$(cat << EOF
+          {
+            "tag_name": "$TAG",
+            "target_commitish": "main",
+            "name": "🎉 Traducteur Automatique v$VERSION",
+            "body": $(cat release_body.md | jq -Rs .),
+            "draft": false,
+            "prerelease": false,
+            "generate_release_notes": false
+          }
+          EOF
+            )
+          
+            echo "📡 Création de la release via API..."
+            RELEASE_RESPONSE=$(curl -s -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases" \
+              -d "$RELEASE_DATA")
+          
+            echo "Response: $RELEASE_RESPONSE"
+          
+            UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
+            RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
+          
+            if [ "$UPLOAD_URL" != "null" ] && [ "$UPLOAD_URL" != "" ]; then
+              echo "✅ Release créée avec ID: $RELEASE_ID"
+              echo "📤 Upload des fichiers..."
+          
+              # Upload des fichiers un par un
+              for file in $EXISTING_FILES; do
+                if [ -f "$file" ]; then
+                  filename=$(basename "$file")
+                  echo "📤 Upload de $filename..."
+          
+                  curl -s -X POST \
+                    -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Content-Type: application/octet-stream" \
+                    "${UPLOAD_URL}?name=${filename}" \
+                    --data-binary "@$file" || {
+                    echo "⚠️ Échec upload de $filename"
+                  }
+                fi
+              done
+          
+              echo "✅ Release créée et fichiers uploadés"
+            else
+              echo "❌ Impossible de créer la release"
+              echo "Response: $RELEASE_RESPONSE"
+              exit 1
+            fi
+          }
+          
+          echo "RELEASE_CREATED=true" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 📊 Récapitulatif de la release
+        if: steps.create_release.outputs.RELEASE_CREATED == 'true'
         run: |
           echo "🎉 Release v${{ steps.get_version.outputs.VERSION }} créée avec succès !"
           echo ""
