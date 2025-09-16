@@ -65,7 +65,7 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Vérifier qu'on est sur la branche main
+    # Vérifier qu'on est sur la branche master
     CURRENT_BRANCH=$(git branch --show-current)
     if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
         echo -e "${RED}❌ Vous devez être sur la branche main/master pour créer une release${NC}"
@@ -84,7 +84,7 @@ check_prerequisites() {
     # Vérifier qu'on est à jour avec origin
     git fetch origin
     LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse origin/$CURRENT_BRANCH 2>/dev/null || git rev-parse origin/main 2>/dev/null || echo "")
+    REMOTE=$(git rev-parse origin/$CURRENT_BRANCH 2>/dev/null || git rev-parse origin/master 2>/dev/null || echo "")
     if [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
         echo -e "${RED}❌ Votre branche locale n'est pas à jour avec origin${NC}"
         echo "Exécutez: git pull origin $CURRENT_BRANCH"

@@ -177,7 +177,47 @@ jobs:
           [ -f "target/traducteur-automatique-${VERSION}-shaded.jar" ] && echo "✅ JAR shaded: OK" || echo "❌ JAR shaded: MANQUANT"
           [ -f "target/traducteur-automatique-${VERSION}-complete.zip" ] && echo "✅ Archive complète: OK" || echo "❌ Archive complète: MANQUANTE"
 
-      - name: 🚀 Création de la Release GitHub
+      - name: 🔍 Vérification de l'existence de la release
+        id: check_release
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          TAG="v$VERSION"
+          
+          # Vérifier si la release existe déjà
+          if gh release view "$TAG" &>/dev/null; then
+            echo "RELEASE_EXISTS=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Release $TAG existe déjà"
+          
+            # Demander ce qu'il faut faire via les inputs du workflow
+            echo "OPTIONS:"
+            echo "1. Mettre à jour la release existante"
+            echo "2. Supprimer et recréer la release"
+            echo "3. Échouer le build"
+          
+            # Par défaut, on met à jour
+            echo "ACTION=update" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_EXISTS=false" >> $GITHUB_OUTPUT
+            echo "✅ Release $TAG n'existe pas, création possible"
+            echo "ACTION=create" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🗑️ Suppression de la release existante (si nécessaire)
+        if: steps.check_release.outputs.RELEASE_EXISTS == 'true' && steps.check_release.outputs.ACTION == 'recreate'
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          TAG="v$VERSION"
+          
+          echo "🗑️ Suppression de la release existante $TAG..."
+          gh release delete "$TAG" --yes || echo "⚠️ Release déjà supprimée"
+          
+          echo "✅ Release $TAG supprimée, création d'une nouvelle..."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚀 Création/Mise à jour de la Release GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref }}
@@ -195,6 +235,8 @@ jobs:
           fail_on_unmatched_files: false
           generate_release_notes: false
           make_latest: true
+          append_body: false
+          discussion_category_name: ""
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
