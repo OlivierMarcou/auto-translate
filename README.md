@@ -1,6 +1,6 @@
 # Traducteur Automatique JavaFX
 
-Une application JavaFX moderne de traduction automatique avec surveillance du presse-papiers en temps réel.
+Une application JavaFX moderne de traduction automatique avec surveillance du presse-papiers en temps réel et système de logging avancé.
 
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21.0.2-blue.svg)
@@ -12,9 +12,18 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 ### ✨ Fonctionnalités Principales
 - **Détection automatique de la langue source** - Reconnaissance intelligente de la langue d'origine
 - **Traduction en temps réel** - Traduction instantanée dès la saisie ou la sélection de texte
-- **Surveillance du presse-papiers** - Traduction automatique de tout texte copié, même depuis d'autres applications
+- **Surveillance intelligente du presse-papiers** - Traduction automatique de tout texte copié depuis d'autres applications (désactivée quand l'app a le focus)
 - **Changement de langue instantané** - Retraduction automatique lors du changement de langue de destination
+- **Raccourci clavier intelligent** - `Ctrl+C` contextuel (copie sélection dans zone source, copie traduction ailleurs)
+- **Logging automatique** - Enregistrement de toutes les traductions dans des fichiers CSV quotidiens
 - **Interface intuitive** - Design moderne et ergonomique
+
+### 📊 Système de Logging Avancé
+- **Fichiers CSV quotidiens** - Un nouveau fichier chaque jour (`traductions_YYYYMMDD.csv`)
+- **Horodatage précis** - Date et heure de chaque traduction
+- **Données complètes** - Texte source, traduction, langues détectées
+- **Format standard** - Compatible Excel, LibreOffice, Google Sheets
+- **Dossier organisé** - Tous les logs dans le dossier `logs/`
 
 ### 🌍 Langues Supportées
 - Français (par défaut)
@@ -49,8 +58,8 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 
 1. **Cloner le repository**
    ```bash
-   git clone https://github.com/votre-username/traducteur-automatique.git
-   cd traducteur-automatique
+   git clone https://github.com/OlivierMarcou/auto-translate.git
+   cd auto-translate
    ```
 
 2. **Compiler le projet**
@@ -70,7 +79,7 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 mvn clean package
 
 # Exécuter le JAR
-java -jar target/traducteur-automatique-1.0.0.jar
+java -jar target/auto-translate-1.0.0.jar
 ```
 
 ## 🖥️ Utilisation
@@ -81,8 +90,9 @@ java -jar target/traducteur-automatique-1.0.0.jar
 2. **Sélecteur de langue** - Choisissez la langue de destination (français par défaut)
 3. **Affichage langue détectée** - Visualisez la langue source détectée automatiquement
 4. **Zone de traduction** - Consultez la traduction en temps réel
-5. **Bouton "Copier"** - Copiez facilement la traduction dans le presse-papiers
+5. **Bouton "Copier la traduction (Ctrl+C)"** - Copiez facilement la traduction
 6. **Case "Surveiller le presse-papiers"** - Activez/désactivez la surveillance automatique
+7. **Astuce d'utilisation** - Guide contextuel affiché en bas
 
 ### Modes d'utilisation
 
@@ -90,29 +100,64 @@ java -jar target/traducteur-automatique-1.0.0.jar
 - Tapez directement dans la zone source
 - La traduction apparaît automatiquement après 1 seconde
 
-#### 📋 Copie depuis d'autres applications
-- Copiez du texte depuis n'importe quelle application (navigateur, Word, etc.)
-- Le texte est automatiquement traduit dans l'application
+#### 📋 Surveillance intelligente du presse-papiers
+- **Quand l'app est en arrière-plan** : Copiez du texte depuis n'importe quelle application → Traduction automatique
+- **Quand l'app a le focus** : Surveillance désactivée pour éviter les conflits
+- **Workflow optimal** : Sélection → `Ctrl+C` → Traduction auto → Cliquez sur l'app → `Ctrl+C` → Colle la traduction
 
 #### 🔄 Changement de langue
 - Sélectionnez une nouvelle langue de destination
 - La traduction se met à jour instantanément
 
+#### ⌨️ Raccourcis clavier intelligents
+- **`Ctrl+C` dans la zone source** : Copie le texte sélectionné (comportement standard)
+- **`Ctrl+C` ailleurs dans l'app** : Copie toute la traduction
+- **Feedback visuel** : Titre de la fenêtre indique "✅ Traduction copiée!" pendant 2 secondes
+
 ## 🛠️ Structure du Projet
 
 ```
-traducteur-automatique/
+auto-translate/
 ├── pom.xml                          # Configuration Maven
 ├── README.md                        # Documentation
 ├── src/
 │   └── main/
 │       ├── java/
 │       │   ├── module-info.java     # Configuration des modules Java
-│       │   └── com/exemple/
+│       │   └── net/arkaine/
 │       │       └── TraducteurAutomatique.java  # Classe principale
 │       └── resources/               # Ressources (icônes, etc.)
-└── target/                          # Fichiers générés par Maven
+├── logs/                           # Dossier des logs (généré automatiquement)
+│   ├── traductions_20250115.csv   # Logs du 15 janvier 2025
+│   ├── traductions_20250116.csv   # Logs du 16 janvier 2025
+│   └── ...                        # Un fichier par jour
+└── target/                         # Fichiers générés par Maven
 ```
+
+## 📊 Système de Logging
+
+### Format des fichiers CSV
+Chaque jour, un nouveau fichier CSV est créé dans le dossier `logs/` :
+
+```csv
+"Timestamp","Texte Source","Traduction","Langue Source","Langue Destination"
+"2025-01-15 14:30:25","Hello world","Bonjour le monde","Anglais","Français"
+"2025-01-15 14:32:10","Como estas","Comment allez-vous","Espagnol","Français"
+"2025-01-15 14:35:42","Guten Tag","Bonjour","Allemand","Français"
+```
+
+### Caractéristiques du logging
+- **Fichier quotidien** : `traductions_YYYYMMDD.csv`
+- **En-têtes automatiques** : Ajoutés lors de la création du fichier
+- **Échappement CSV** : Gestion correcte des guillemets et virgules
+- **Limitation de taille** : Textes tronqués à 1000 caractères si nécessaire
+- **Horodatage précis** : Format `yyyy-MM-dd HH:mm:ss`
+
+### Utilisation des logs
+- **Analyse d'usage** : Statistiques sur vos traductions
+- **Recherche** : Retrouvez d'anciennes traductions
+- **Export** : Ouvrez avec Excel, LibreOffice, Google Sheets
+- **Archivage** : Historique complet de votre activité
 
 ## 🔧 Configuration
 
@@ -142,7 +187,19 @@ mvn dependency:tree | grep javafx
 
 #### ❌ L'application ne surveille pas le presse-papiers
 - Vérifiez que la case "Surveiller le presse-papiers" est cochée
+- **Important** : La surveillance est automatiquement désactivée quand l'application a le focus (comportement normal)
+- Cliquez sur une autre application pour réactiver la surveillance
 - Sur certains systèmes, des permissions spéciales peuvent être requises
+
+#### ❌ Le raccourci Ctrl+C ne fonctionne pas comme attendu
+- **Dans la zone source** : `Ctrl+C` copie le texte sélectionné (normal)
+- **Ailleurs dans l'app** : `Ctrl+C` copie toute la traduction
+- Assurez-vous que l'application a le focus pour utiliser les raccourcis
+
+#### ❌ Les logs ne se créent pas
+- Vérifiez les permissions d'écriture dans le dossier du projet
+- Le dossier `logs/` est créé automatiquement au premier lancement
+- Consultez la console pour les messages d'erreur de logging
 
 ### Logs de débogage
 ```bash
@@ -169,12 +226,15 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 
 ### Idées d'améliorations
 - [ ] Support d'APIs de traduction alternatives (DeepL, Azure, etc.)
-- [ ] Historique des traductions
-- [ ] Raccourcis clavier globaux
+- [ ] Interface de consultation des historiques de traductions
+- [ ] Statistiques visuelles des langues les plus utilisées
+- [ ] Raccourcis clavier globaux (système)
 - [ ] Mode sombre
 - [ ] Détection de la langue par fichier
-- [ ] Export des traductions
-- [ ] Configuration personnalisable
+- [ ] Export personnalisé des logs (JSON, XML)
+- [ ] Configuration personnalisable des raccourcis
+- [ ] Notifications système pour les traductions
+- [ ] Cache local pour les traductions fréquentes
 
 ## 📄 License
 
@@ -187,11 +247,21 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 - [Gson](https://github.com/google/gson) - Parsing JSON
 - [Maven](https://maven.apache.org/) - Gestionnaire de dépendances
 
+## 🎯 Workflow Recommandé
+
+```
+🌐 Navigation web : Sélection + Ctrl+C → ✨ Traduction auto
+📝 Dans l'app : Ctrl+C → 📋 Copie la traduction  
+📤 Destination : Ctrl+V → ✅ Colle la traduction
+📊 Analyse : Consultez logs/ pour vos statistiques
+```
+
 ## 📞 Support
 
-- 🐛 **Issues** : [GitHub Issues](https://github.com/votre-username/traducteur-automatique/issues)
-- 💬 **Discussions** : [GitHub Discussions](https://github.com/votre-username/traducteur-automatique/discussions)
-- 📧 **Email** : votre-email@example.com
+- 🐛 **Issues** : [GitHub Issues](https://github.com/OlivierMarcou/auto-translate/issues)
+- 💬 **wiki** : [GitHub Discussions](https://github.com/OlivierMarcou/auto-translate/wiki)
+- 📧 **Email** : marcou.olivier@gmail.com
+- 📋 **Logs** : Consultez le dossier `logs/` pour le debugging
 
 ---
 
