@@ -239,4 +239,81 @@ main() {
         echo ""
 
         # Afficher la dernière version
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "aucune")
+        echo "Dernière version : $LAST_TAG"
+        echo ""
+        echo -e "${YELLOW}⚠️ Format recommandé: X.Y.Z (ex: 1.0.0, 2.1.3)${NC}"
+        echo -e "${YELLOW}   Évitez: 1.00, 2.10 (utilisez 1.0.0, 2.10.0)${NC}"
+        echo ""
+
+        while true; do
+            read -p "Entrez la nouvelle version (format: X.Y.Z) : " VERSION
+            if validate_version "$VERSION"; then
+                break
+            fi
+        done
+    else
+        # Valider la version fournie
+        if ! validate_version "$VERSION"; then
+            exit 1
+        fi
+    fi
+
+    echo -e "${BLUE}🎯 Création de la release v$VERSION${NC}"
+    echo ""
+
+    # Récapitulatif avant de continuer
+    echo -e "${YELLOW}📋 Récapitulatif :${NC}"
+    echo "  • Version : v$VERSION"
+    echo "  • Branche : $(git branch --show-current)"
+    echo "  • Commit : $(git rev-parse --short HEAD)"
+    echo "  • Actions :"
+    echo "    - Mise à jour pom.xml"
+    echo "    - Build et tests"
+    echo "    - Création du tag"
+    echo "    - Push (déclenche la CI/CD automatique)"
+    echo ""
+
+    read -p "Continuer avec cette configuration ? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}⚠️ Opération annulée${NC}"
+        exit 0
+    fi
+
+    echo ""
+    echo -e "${GREEN}🚀 Démarrage du processus de release...${NC}"
+    echo ""
+
+    # Étapes du processus
+    update_pom_version "$VERSION"
+    build_and_test
+    quick_test_app
+    create_and_push_tag "$VERSION"
+
+    echo ""
+    echo -e "${GREEN}"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                    🎉 RELEASE CRÉÉE !                   ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+    echo -e "${GREEN}✅ Release v$VERSION créée avec succès !${NC}"
+    echo ""
+    echo "📋 Prochaines étapes :"
+    echo "  1. 🤖 La CI/CD GitHub va automatiquement :"
+    echo "     • Compiler le projet"
+    echo "     • Créer les JARs optimisés"
+    echo "     • Générer les notes de version"
+    echo "     • Publier la release sur GitHub"
+    echo ""
+    echo "  2. 🌐 La release sera disponible à :"
+    echo "     https://github.com/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')/releases/tag/v$VERSION"
+    echo ""
+    echo "  3. ⏰ Temps estimé : 5-10 minutes"
+    echo ""
+    echo -e "${BLUE}💡 Surveillez l'onglet Actions de votre repo GitHub pour suivre le processus${NC}"
+}
+
+# Point d'entrée du script
+main "$@"
