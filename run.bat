@@ -1,58 +1,64 @@
-REM ===== run.bat (Windows) =====
 @echo off
-echo Lancement du Traducteur Automatique...
+echo ========================================
+echo    Traducteur Automatique - Swing
+echo ========================================
+echo.
 
-REM Méthode 1 : JAR avec dépendances séparées
-if exist target\lib\javafx-controls-*.jar (
-    echo Utilisation du JAR avec dépendances séparées...
-    java --module-path target\lib ^
-         --add-modules javafx.controls,javafx.fxml,javafx.swing ^
-         --add-exports java.desktop/sun.awt=ALL-UNNAMED ^
-         --add-exports java.desktop/sun.java2d=ALL-UNNAMED ^
-         -jar target\auto-translate-1.0-SNAPSHOT.jar
-    goto :end
+REM Vérifier Java
+java -version >nul 2>&1
+if errorlevel 1 (
+    echo ERREUR: Java n'est pas installé ou pas dans le PATH
+    echo Téléchargez Java 21+ depuis: https://adoptium.net/
+    pause
+    exit /b 1
 )
 
-REM Méthode 2 : JAR avec toutes les dépendances
-if exist target\auto-translate-1.0-SNAPSHOT-jar-with-dependencies.jar (
+REM Vérifier Maven
+mvn -version >nul 2>&1
+if errorlevel 1 (
+    echo ERREUR: Maven n'est pas installé ou pas dans le PATH
+    echo Téléchargez Maven depuis: https://maven.apache.org/download.cgi
+    pause
+    exit /b 1
+)
+
+echo Java et Maven détectés ✓
+echo.
+
+REM Méthode 1 : JAR avec toutes les dépendances
+if exist target\auto-translate-swing-1.0-SNAPSHOT-jar-with-dependencies.jar (
     echo Utilisation du JAR avec toutes les dépendances...
-    java --add-exports java.desktop/sun.awt=ALL-UNNAMED ^
-         --add-exports java.desktop/sun.java2d=ALL-UNNAMED ^
-         -jar target\auto-translate-1.0-SNAPSHOT-jar-with-dependencies.jar
+    echo Lancement de l'application...
+    java -jar target\auto-translate-swing-1.0-SNAPSHOT-jar-with-dependencies.jar
     goto :end
 )
 
-REM Méthode 3 : Via Maven
-echo Aucun JAR trouvé, utilisation de Maven...
-mvn javafx:run
+REM Méthode 2 : JAR shaded
+if exist target\auto-translate-swing-1.0-SNAPSHOT-shaded.jar (
+    echo Utilisation du JAR shaded...
+    echo Lancement de l'application...
+    java -jar target\auto-translate-swing-1.0-SNAPSHOT-shaded.jar
+    goto :end
+)
+
+REM Méthode 3 : Compilation et lancement via Maven
+echo Aucun JAR trouvé, compilation et lancement via Maven...
+echo.
+echo Compilation du projet...
+mvn clean compile
+
+if errorlevel 1 (
+    echo ERREUR: Échec de la compilation
+    pause
+    exit /b 1
+)
+
+echo Compilation réussie ✓
+echo.
+echo Lancement de l'application...
+mvn exec:java -Dexec.mainClass="net.arkaine.TraducteurAutomatique"
 
 :end
+echo.
+echo Application fermée.
 pause
-
-REM ===== run.sh (Linux/Mac) =====
-#!/bin/bash
-echo "Lancement du Traducteur Automatique..."
-
-# Méthode 1 : JAR avec dépendances séparées
-if [ -f target/lib/javafx-controls-*.jar ]; then
-    echo "Utilisation du JAR avec dépendances séparées..."
-    java --module-path target/lib \
-         --add-modules javafx.controls,javafx.fxml,javafx.swing \
-         --add-exports java.desktop/sun.awt=ALL-UNNAMED \
-         --add-exports java.desktop/sun.java2d=ALL-UNNAMED \
-         -jar target/auto-translate-1.0-SNAPSHOT.jar
-    exit 0
-fi
-
-# Méthode 2 : JAR avec toutes les dépendances
-if [ -f target/auto-translate-1.0-SNAPSHOT-jar-with-dependencies.jar ]; then
-    echo "Utilisation du JAR avec toutes les dépendances..."
-    java --add-exports java.desktop/sun.awt=ALL-UNNAMED \
-         --add-exports java.desktop/sun.java2d=ALL-UNNAMED \
-         -jar target/auto-translate-1.0-SNAPSHOT-jar-with-dependencies.jar
-    exit 0
-fi
-
-# Méthode 3 : Via Maven
-echo "Aucun JAR trouvé, utilisation de Maven..."
-mvn javafx:run
