@@ -457,9 +457,8 @@ public class TraducteurAutomatique extends Application {
             alert.showAndWait();
         }
     }
-
     /**
-     * Créer l'overlay de sélection sur tous les écrans
+     * Créer l'overlay de sélection - UNE SEULE FENÊTRE couvrant TOUS les écrans
      */
     private void creerOverlaySelection() throws Exception {
         // Obtenir les dimensions de tous les écrans
@@ -469,209 +468,173 @@ public class TraducteurAutomatique extends Application {
         System.out.println("Nombre d'écrans détectés: " + screens.length);
 
         // Calculer la zone totale de tous les écrans (bounding box)
-        Rectangle zoneTotale = new Rectangle();
+        var ref = new Object() {
+            Rectangle zoneTotale = new Rectangle();
+        };
         for (int i = 0; i < screens.length; i++) {
             GraphicsConfiguration config = screens[i].getDefaultConfiguration();
             Rectangle bounds = config.getBounds();
             System.out.println("Écran " + i + ": " + bounds);
 
             if (i == 0) {
-                zoneTotale = new Rectangle(bounds);
+                ref.zoneTotale = new Rectangle(bounds);
             } else {
-                zoneTotale = zoneTotale.union(bounds);
+                ref.zoneTotale = ref.zoneTotale.union(bounds);
             }
         }
 
-        System.out.println("Zone totale calculée: " + zoneTotale);
+        System.out.println("Zone totale calculée: " + ref.zoneTotale);
 
         // Créer une capture complète de tous les écrans
         Robot robot = new Robot();
-        BufferedImage captureComplete = robot.createScreenCapture(zoneTotale);
+        BufferedImage captureComplete = robot.createScreenCapture(ref.zoneTotale);
 
-        // Créer la liste finale des stages (pour les lambdas)
-        final List<Stage> stagesSelection = new ArrayList<>();
-        final List<Canvas> canvasList = new ArrayList<>();
-        final List<Rectangle> ecranBounds = new ArrayList<>();
-
-        // Variables partagées pour la sélection (finales pour les lambdas)
-        final Rectangle[] zoneSelectionGlobale = {null};
+        // Variables pour la sélection
+        final Rectangle[] zoneSelection = {null};
         final double[] startX = {0};
         final double[] startY = {0};
         final boolean[] isSelecting = {false};
-        final Rectangle zoneTotaleFinale = new Rectangle(zoneTotale);
-        final BufferedImage captureFinale = captureComplete;
 
-        // Créer une fenêtre de sélection pour chaque écran
-        for (int i = 0; i < screens.length; i++) {
-            GraphicsConfiguration config = screens[i].getDefaultConfiguration();
-            Rectangle boundsEcran = config.getBounds();
-            ecranBounds.add(new Rectangle(boundsEcran));
+        // Créer UNE SEULE fenêtre qui couvre tous les écrans
+        Stage stageSelection = new Stage();
+        stageSelection.initStyle(StageStyle.TRANSPARENT);
+        stageSelection.setAlwaysOnTop(true);
 
-            System.out.println("Création overlay pour écran " + i + ": " + boundsEcran);
+        // UN SEUL Canvas qui couvre toute la zone
+        Canvas canvas = new Canvas(ref.zoneTotale.width, ref.zoneTotale.height);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
 
-            // Créer la fenêtre de sélection pour cet écran
-            Stage stageSelection = new Stage();
-            stageSelection.initStyle(StageStyle.TRANSPARENT);
-            stageSelection.setAlwaysOnTop(true);
+        // Convertir l'image complète pour JavaFX
+        WritableImage fxImageComplete = SwingFXUtils.toFXImage(captureComplete, null);
 
-            // Canvas pour cet écran
-            Canvas canvas = new Canvas(boundsEcran.width, boundsEcran.height);
-            GraphicsContext gc = canvas.getGraphicsContext2D();
-            canvasList.add(canvas);
+        // Dessiner l'image de fond assombrie
+        gc.drawImage(fxImageComplete, 0, 0);
+        gc.setFill(Color.color(0, 0, 0, 0.3)); // Overlay semi-transparent
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-            // Extraire la partie de l'image correspondant à cet écran
-            int sourceX = boundsEcran.x - zoneTotale.x;
-            int sourceY = boundsEcran.y - zoneTotale.y;
+        // Gestion des événements souris sur le canvas unifié
+        canvas.setOnMousePressed((MouseEvent e) -> {
+            // Les coordonnées sont directement dans le repère global
+            startX[0] = e.getX() + ref.zoneTotale.x;
+            startY[0] = e.getY() + ref.zoneTotale.y;
+            isSelecting[0] = true;
+            System.out.println("Début sélection globale: " + startX[0] + ", " + startY[0]);
+        });
 
-            BufferedImage partieEcran = captureComplete.getSubimage(
-                    sourceX, sourceY, boundsEcran.width, boundsEcran.height);
+        canvas.setOnMouseDragged((MouseEvent e) -> {
+            if (isSelecting[0]) {
+                // Coordonnées globales
+                double endX = e.getX() + ref.zoneTotale.x;
+                double endY = e.getY() + ref.zoneTotale.y;
 
-            // Convertir pour JavaFX
-            WritableImage fxImage = SwingFXUtils.toFXImage(partieEcran, null);
+                // Calculer le rectangle de sélection en coordonnées globales
+                double x = Math.min(startX[0], endX);
+                double y = Math.min(startY[0], endY);
+                double w = Math.abs(endX - startX[0]);
+                double h = Math.abs(endY - startY[0]);
 
-            // Dessiner l'image de fond assombrie
-            gc.drawImage(fxImage, 0, 0);
-            gc.setFill(Color.color(0, 0, 0, 0.3)); // Overlay semi-transparent
-            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+                zoneSelection[0] = new Rectangle((int)x, (int)y, (int)w, (int)h);
 
-            final int indexEcranActuel = i;
-            final Rectangle boundsEcranFinal = new Rectangle(boundsEcran);
+                // Mettre à jour l'affichage (coordonnées canvas locales)
+                double localX = x - ref.zoneTotale.x;
+                double localY = y - ref.zoneTotale.y;
+                mettreAJourOverlayUnifie(gc, fxImageComplete, localX, localY, w, h);
+            }
+        });
 
-            // Gestion des événements de souris
-            canvas.setOnMousePressed((MouseEvent e) -> {
-                // Convertir les coordonnées locales en coordonnées globales
-                startX[0] = e.getX() + boundsEcranFinal.x;
-                startY[0] = e.getY() + boundsEcranFinal.y;
-                isSelecting[0] = true;
-                System.out.println("Début sélection globale: " + startX[0] + ", " + startY[0] + " (écran " + indexEcranActuel + ")");
-            });
+        canvas.setOnMouseReleased((MouseEvent e) -> {
+            if (isSelecting[0] && zoneSelection[0] != null) {
+                isSelecting[0] = false;
 
-            canvas.setOnMouseDragged((MouseEvent e) -> {
-                if (isSelecting[0]) {
-                    // Coordonnées globales de la fin de sélection
-                    double endX = e.getX() + boundsEcranFinal.x;
-                    double endY = e.getY() + boundsEcranFinal.y;
+                System.out.println("Zone sélectionnée globale: " + zoneSelection[0]);
 
-                    // Calculer le rectangle de sélection en coordonnées globales
-                    double x = Math.min(startX[0], endX);
-                    double y = Math.min(startY[0], endY);
-                    double w = Math.abs(endX - startX[0]);
-                    double h = Math.abs(endY - startY[0]);
+                // Fermer l'overlay
+                stageSelection.close();
 
-                    zoneSelectionGlobale[0] = new Rectangle((int)x, (int)y, (int)w, (int)h);
-
-                    // Mettre à jour tous les écrans
-                    mettreAJourTousLesOverlays(canvasList, ecranBounds, captureFinale, zoneTotaleFinale, zoneSelectionGlobale[0]);
-                }
-            });
-
-            canvas.setOnMouseReleased((MouseEvent e) -> {
-                if (isSelecting[0] && zoneSelectionGlobale[0] != null) {
-                    isSelecting[0] = false;
-
-                    System.out.println("Zone sélectionnée globale: " + zoneSelectionGlobale[0]);
-
-                    // Fermer tous les overlays
-                    for (Stage stage : stagesSelection) {
-                        stage.close();
-                    }
-
-                    // Traiter la capture si la sélection est suffisante
-                    if (zoneSelectionGlobale[0].width > 10 && zoneSelectionGlobale[0].height > 10) {
-                        traiterCaptureZone(zoneSelectionGlobale[0]);
-                    } else {
-                        System.out.println("Sélection trop petite ignorée");
-                        restaurerFenetrePrincipale();
-                    }
-                }
-            });
-
-            // Échapper pour annuler
-            canvas.setOnKeyPressed(keyEvent -> {
-                if (keyEvent.getCode().getName().equals("ESCAPE")) {
-                    for (Stage stage : stagesSelection) {
-                        stage.close();
-                    }
+                // Traiter la capture si la sélection est suffisante
+                if (zoneSelection[0].width > 10 && zoneSelection[0].height > 10) {
+                    traiterCaptureZone(zoneSelection[0]);
+                } else {
+                    System.out.println("Sélection trop petite ignorée");
                     restaurerFenetrePrincipale();
                 }
-            });
-
-            // Créer la scène pour cet écran
-            VBox root = new VBox();
-            root.getChildren().add(canvas);
-            root.setStyle("-fx-background-color: transparent;");
-
-            Scene scene = new Scene(root, boundsEcran.width, boundsEcran.height);
-            scene.setFill(Color.TRANSPARENT);
-            stageSelection.setScene(scene);
-
-            // Positionner la fenêtre exactement sur cet écran
-            stageSelection.setX(boundsEcran.x);
-            stageSelection.setY(boundsEcran.y);
-            stageSelection.setWidth(boundsEcran.width);
-            stageSelection.setHeight(boundsEcran.height);
-
-            stagesSelection.add(stageSelection);
-        }
-
-        // Afficher tous les overlays
-        for (Stage stage : stagesSelection) {
-            stage.show();
-            if (stage.getScene() != null && stage.getScene().getRoot() instanceof VBox) {
-                VBox root = (VBox) stage.getScene().getRoot();
-                if (!root.getChildren().isEmpty() && root.getChildren().get(0) instanceof Canvas) {
-                    Canvas canvas = (Canvas) root.getChildren().get(0);
-                    canvas.requestFocus();
-                }
             }
-        }
+        });
 
-        System.out.println("Overlays de sélection créés pour " + screens.length + " écrans");
+        // Échapper pour annuler
+        canvas.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode().getName().equals("ESCAPE")) {
+                stageSelection.close();
+                restaurerFenetrePrincipale();
+            }
+        });
+
+        // Créer la scène
+        VBox root = new VBox();
+        root.getChildren().add(canvas);
+        root.setStyle("-fx-background-color: transparent;");
+
+        Scene scene = new Scene(root, ref.zoneTotale.width, ref.zoneTotale.height);
+        scene.setFill(Color.TRANSPARENT);
+        stageSelection.setScene(scene);
+
+        // Positionner la fenêtre pour couvrir tous les écrans
+        stageSelection.setX(ref.zoneTotale.x);
+        stageSelection.setY(ref.zoneTotale.y);
+        stageSelection.setWidth(ref.zoneTotale.width);
+        stageSelection.setHeight(ref.zoneTotale.height);
+
+        // Afficher l'overlay
+        stageSelection.show();
+        canvas.requestFocus();
+
+        System.out.println("Overlay unifié créé couvrant tous les écrans: " + ref.zoneTotale);
     }
 
     /**
-     * Mettre à jour tous les overlays avec la sélection actuelle
+     * Mettre à jour l'overlay unifié avec la sélection courante
      */
-    private void mettreAJourTousLesOverlays(List<Canvas> canvasList, List<Rectangle> ecranBounds,
-                                            BufferedImage captureComplete, Rectangle zoneTotale,
-                                            Rectangle selectionGlobale) {
+    private void mettreAJourOverlayUnifie(GraphicsContext gc, WritableImage fxImageComplete,
+                                          double x, double y, double w, double h) {
+        // Redessiner le fond assombri complet
+        gc.clearRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
+        gc.drawImage(fxImageComplete, 0, 0);
+        gc.setFill(Color.color(0, 0, 0, 0.3));
+        gc.fillRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
 
-        for (int i = 0; i < canvasList.size(); i++) {
-            Canvas canvas = canvasList.get(i);
-            Rectangle boundsEcran = ecranBounds.get(i);
-            GraphicsContext gc = canvas.getGraphicsContext2D();
+        // Zone claire (sélectionnée)
+        if (w > 0 && h > 0 && x >= 0 && y >= 0 &&
+                x + w <= gc.getCanvas().getWidth() && y + h <= gc.getCanvas().getHeight()) {
 
-            // Extraire la partie d'image pour cet écran
-            int sourceX = boundsEcran.x - zoneTotale.x;
-            int sourceY = boundsEcran.y - zoneTotale.y;
+            gc.clearRect(x, y, w, h);
+            gc.drawImage(fxImageComplete, x, y, w, h, x, y, w, h);
 
-            BufferedImage partieEcran = captureComplete.getSubimage(
-                    sourceX, sourceY, boundsEcran.width, boundsEcran.height);
-            WritableImage fxImage = SwingFXUtils.toFXImage(partieEcran, null);
+            // Bordure de sélection
+            gc.setStroke(Color.RED);
+            gc.setLineWidth(3);
+            gc.strokeRect(x, y, w, h);
 
-            // Redessiner le fond assombri
-            gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-            gc.drawImage(fxImage, 0, 0);
-            gc.setFill(Color.color(0, 0, 0, 0.3));
-            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+            // Afficher les dimensions et position
+            gc.setFill(Color.WHITE);
+            gc.setStroke(Color.BLACK);
+            gc.setLineWidth(1);
+            String info = (int)w + " × " + (int)h + " px";
 
-            // Calculer l'intersection entre la sélection et cet écran
-            Rectangle intersection = selectionGlobale.intersection(boundsEcran);
-            if (!intersection.isEmpty()) {
-                // Convertir en coordonnées locales à cet écran
-                double localX = intersection.x - boundsEcran.x;
-                double localY = intersection.y - boundsEcran.y;
+            // Positionner le texte au-dessus de la sélection
+            double textX = x + 5;
+            double textY = y - 10;
+            if (textY < 20) textY = y + 20; // Si trop près du bord, mettre en dessous
 
-                // Zone claire (sélectionnée)
-                gc.clearRect(localX, localY, intersection.width, intersection.height);
-                gc.drawImage(fxImage, localX, localY, intersection.width, intersection.height,
-                        localX, localY, intersection.width, intersection.height);
+            gc.strokeText(info, textX, textY);
+            gc.fillText(info, textX, textY);
 
-                // Bordure de sélection
-                gc.setStroke(Color.RED);
-                gc.setLineWidth(2);
-                gc.strokeRect(localX, localY, intersection.width, intersection.height);
-            }
+            // Croix au centre pour plus de précision
+            gc.setStroke(Color.RED);
+            gc.setLineWidth(1);
+            double centerX = x + w/2;
+            double centerY = y + h/2;
+            gc.strokeLine(centerX - 10, centerY, centerX + 10, centerY);
+            gc.strokeLine(centerX, centerY - 10, centerX, centerY + 10);
         }
     }
 
