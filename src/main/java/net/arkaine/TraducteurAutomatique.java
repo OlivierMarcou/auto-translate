@@ -1,4 +1,6 @@
 package net.arkaine;
+
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -13,6 +15,11 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
@@ -28,6 +35,14 @@ public class TraducteurAutomatique extends Application {
     private Label labelLangueDetectee;
     private ProgressIndicator indicateurProgres;
     private String dernierTexteClipboard = "";
+    private String sauvegardeClipboard = ""; // Sauvegarder le contenu original
+    private boolean applicationALeFocus = false;
+    private boolean ignorerProchainClipboard = false;
+
+    // Système de logging
+    private static final DateTimeFormatter FORMAT_FICHIER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter FORMAT_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private String dernierJourFichier = "";
 
     // Mapping des langues
     private Map<String, String> langues = new HashMap<>();
@@ -79,9 +94,13 @@ public class TraducteurAutomatique extends Application {
         zoneTexteDestination.setEditable(false);
         zoneTexteDestination.setStyle("-fx-background-color: #f5f5f5;");
 
-        // Bouton copier
-        Button boutonCopier = new Button("Copier la traduction");
+        // Bouton copier avec raccourci clavier
+        Button boutonCopier = new Button("Copier la traduction (Ctrl+C)");
         boutonCopier.setOnAction(e -> copierTraduction());
+
+        // Instructions d'utilisation
+        Label labelInstructions = new Label("💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction automatique");
+        labelInstructions.setStyle("-fx-font-size: 10px; -fx-text-fill: gray; -fx-font-style: italic;");
 
         // Checkbox pour activer/désactiver la surveillance du presse-papiers
         CheckBox checkboxSurveillance = new CheckBox("Surveiller le presse-papiers");
@@ -98,12 +117,37 @@ public class TraducteurAutomatique extends Application {
                 zoneTexteDestination,
                 boutonCopier,
                 new Separator(),
-                checkboxSurveillance
+                checkboxSurveillance,
+                labelInstructions
         );
 
-        Scene scene = new Scene(new ScrollPane(root), 600, 700);
+        Scene scene = new Scene(new ScrollPane(root), 600, 750);
         primaryStage.setScene(scene);
+
+        // Raccourci clavier global pour copier la traduction
+        scene.setOnKeyPressed(e -> {
+            if (e.isControlDown() && e.getCode().toString().equals("C")) {
+                // Vérifier si le focus est sur la zone de traduction ou nulle part en particulier
+                if (scene.getFocusOwner() == zoneTexteDestination ||
+                        scene.getFocusOwner() == null ||
+                        scene.getFocusOwner() == boutonCopier) {
+                    copierTraduction();
+                    e.consume();
+                }
+                // Si le focus est sur la zone source, laisser le Ctrl+C normal fonctionner
+            }
+        });
+
         primaryStage.show();
+
+        // Détecter quand l'application a le focus ou le perd
+        primaryStage.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            applicationALeFocus = newValue;
+            System.out.println("Application focus: " + applicationALeFocus); // Debug
+        });
+
+        // Créer le dossier de logs s'il n'existe pas
+        creerDossierLogs();
 
         // Démarrer la surveillance du presse-papiers
         demarrerSurveillanceClipboard(checkboxSurveillance);
@@ -165,13 +209,26 @@ public class TraducteurAutomatique extends Application {
                 if (checkboxSurveillance.isSelected()) {
                     Platform.runLater(() -> {
                         try {
+                            // NE PAS surveiller le clipboard si l'application a le focus
+                            // ou si on vient de copier quelque chose depuis l'app
+                            if (applicationALeFocus || ignorerProchainClipboard) {
+                                if (ignorerProchainClipboard) {
+                                    ignorerProchainClipboard = false; // Reset du flag
+                                    System.out.println("Clipboard ignoré après copie interne"); // Debug
+                                }
+                                return;
+                            }
+
                             Clipboard clipboard = Clipboard.getSystemClipboard();
                             if (clipboard.hasString()) {
                                 String contenu = clipboard.getString();
                                 if (contenu != null && !contenu.equals(dernierTexteClipboard)
                                         && contenu.trim().length() > 0) {
+                                    // Sauvegarder le contenu original pour pouvoir le restaurer
+                                    sauvegardeClipboard = contenu;
                                     dernierTexteClipboard = contenu;
                                     zoneTexteSource.setText(contenu);
+                                    System.out.println("Nouveau texte détecté: " + contenu.substring(0, Math.min(50, contenu.length())) + "..."); // Debug
                                 }
                             }
                         } catch (Exception e) {
@@ -215,6 +272,9 @@ public class TraducteurAutomatique extends Application {
                     labelLangueDetectee.setText("Langue détectée : " + obtenirNomLangue(langueSource));
                     zoneTexteDestination.setText(traduction);
                     indicateurProgres.setVisible(false);
+
+                    // Enregistrer dans les logs
+                    enregistrerTraduction(texte, traduction, langueSource, langueDestination);
                 });
             }
 
@@ -312,17 +372,113 @@ public class TraducteurAutomatique extends Application {
     private void copierTraduction() {
         String traduction = zoneTexteDestination.getText();
         if (!traduction.trim().isEmpty()) {
+            // Marquer qu'on va modifier le clipboard depuis l'application
+            ignorerProchainClipboard = true;
+
             ClipboardContent contenu = new ClipboardContent();
             contenu.putString(traduction);
             Clipboard.getSystemClipboard().setContent(contenu);
 
-            // Feedback visuel
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Copié");
-            alert.setHeaderText(null);
-            alert.setContentText("La traduction a été copiée dans le presse-papiers !");
-            alert.showAndWait();
+            // Mettre à jour le dernier contenu connu pour éviter la re-détection
+            dernierTexteClipboard = traduction;
+
+            // Feedback visuel discret dans la barre de titre
+            Stage stage = (Stage) zoneTexteDestination.getScene().getWindow();
+            String titreOriginal = stage.getTitle();
+            stage.setTitle("✅ Traduction copiée!");
+
+            // Restaurer le titre après 2 secondes
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    Platform.runLater(() -> stage.setTitle(titreOriginal));
+                }
+            }, 2000);
+
+            System.out.println("Traduction copiée: " + traduction.substring(0, Math.min(50, traduction.length())) + "..."); // Debug
         }
+    }
+
+    /**
+     * Créer le dossier de logs s'il n'existe pas
+     */
+    private void creerDossierLogs() {
+        try {
+            Files.createDirectories(Paths.get("logs"));
+            System.out.println("Dossier de logs créé/vérifié: logs/");
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la création du dossier logs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Enregistrer la traduction dans le fichier CSV du jour
+     */
+    private void enregistrerTraduction(String texteSource, String traduction, String langueSource, String langueDestination) {
+        try {
+            LocalDateTime maintenant = LocalDateTime.now();
+            String jourActuel = maintenant.format(FORMAT_FICHIER);
+            String timestamp = maintenant.format(FORMAT_TIMESTAMP);
+
+            // Nom du fichier avec timestamp du jour
+            String nomFichier = "logs/traductions_" + jourActuel + ".csv";
+
+            // Vérifier si c'est un nouveau jour (nouveau fichier)
+            boolean nouveauFichier = !jourActuel.equals(dernierJourFichier);
+            dernierJourFichier = jourActuel;
+
+            // Préparer la ligne CSV (échapper les guillemets et virgules)
+            String texteSourceEchappe = echapperCSV(texteSource);
+            String traductionEchappee = echapperCSV(traduction);
+            String langueSourceNom = obtenirNomLangue(langueSource);
+            String langueDestinationNom = obtenirNomLangue(langueDestination);
+
+            StringBuilder ligne = new StringBuilder();
+            ligne.append("\"").append(timestamp).append("\",");
+            ligne.append("\"").append(texteSourceEchappe).append("\",");
+            ligne.append("\"").append(traductionEchappee).append("\",");
+            ligne.append("\"").append(langueSourceNom).append("\",");
+            ligne.append("\"").append(langueDestinationNom).append("\"");
+            ligne.append(System.lineSeparator());
+
+            // Écrire dans le fichier
+            if (nouveauFichier && !Files.exists(Paths.get(nomFichier))) {
+                // Nouveau fichier : ajouter l'en-tête CSV
+                String entete = "\"Timestamp\",\"Texte Source\",\"Traduction\",\"Langue Source\",\"Langue Destination\"" + System.lineSeparator();
+                Files.write(Paths.get(nomFichier), entete.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                System.out.println("Nouveau fichier de logs créé: " + nomFichier);
+            }
+
+            // Ajouter la ligne de traduction
+            Files.write(Paths.get(nomFichier), ligne.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+
+            System.out.println("Traduction enregistrée dans: " + nomFichier);
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors de l'enregistrement des logs: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Échapper les caractères spéciaux pour CSV (guillemets, virgules, retours à la ligne)
+     */
+    private String echapperCSV(String texte) {
+        if (texte == null) return "";
+
+        // Remplacer les guillemets par des guillemets doublés
+        String resultat = texte.replace("\"", "\"\"");
+
+        // Remplacer les retours à la ligne par des espaces
+        resultat = resultat.replace("\n", " ").replace("\r", " ");
+
+        // Limiter la longueur pour éviter les lignes trop longues
+        if (resultat.length() > 1000) {
+            resultat = resultat.substring(0, 997) + "...";
+        }
+
+        return resultat;
     }
 
     public static void main(String[] args) {
