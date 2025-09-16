@@ -6,10 +6,23 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.scene.paint.Color;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
+import javafx.embed.swing.SwingFXUtils;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -25,6 +38,9 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.List;
+import java.util.Arrays;
+import javax.imageio.ImageIO;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -103,9 +119,14 @@ public class TraducteurAutomatique extends Application {
         zoneTexteSource.setPrefRowCount(8);
         zoneTexteSource.setPromptText("Tapez ou collez votre texte ici...");
 
-        // Bouton de traduction manuelle
+        // Bouton de traduction manuelle et capture d'écran
         Button boutonTraduire = new Button("Traduire");
         boutonTraduire.setOnAction(e -> traduireTexte());
+
+        Button boutonCapture = new Button("📷 Capturer écran");
+        boutonCapture.setStyle("-fx-font-size: 12px;");
+        boutonCapture.setTooltip(new Tooltip("Capturer une zone de l'écran et traduire le texte (OCR)"));
+        boutonCapture.setOnAction(e -> demarrerCaptureEcran());
 
         // Indicateur de progression
         indicateurProgres = new ProgressIndicator();
@@ -113,7 +134,7 @@ public class TraducteurAutomatique extends Application {
         indicateurProgres.setPrefSize(30, 30);
 
         HBox boxBouton = new HBox(10);
-        boxBouton.getChildren().addAll(boutonTraduire, indicateurProgres);
+        boxBouton.getChildren().addAll(boutonTraduire, boutonCapture, indicateurProgres);
 
         // Zone de texte destination
         Label labelTexteDestination = new Label("Traduction :");
@@ -127,7 +148,9 @@ public class TraducteurAutomatique extends Application {
         boutonCopier.setOnAction(e -> copierTraduction());
 
         // Instructions d'utilisation
-        Label labelInstructions = new Label("💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction automatique");
+        Label labelInstructions = new Label("💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction automatique\n" +
+                "📷 Capture d'écran: Cliquez sur 'Capturer écran' puis sélectionnez la zone\n" +
+                "🚫 Code source et textes > 5000 caractères filtrés automatiquement");
         labelInstructions.setStyle("-fx-font-size: 10px; -fx-text-fill: gray; -fx-font-style: italic;");
 
         // Checkbox pour activer/désactiver la surveillance du presse-papiers
@@ -401,6 +424,360 @@ public class TraducteurAutomatique extends Application {
         Thread threadTraduction = new Thread(tacheTraduction);
         threadTraduction.setDaemon(true);
         threadTraduction.start();
+    }
+
+    /**
+     * Démarrer la capture d'écran avec sélection de zone
+     */
+    private void demarrerCaptureEcran() {
+        try {
+            // Minimiser la fenêtre principale temporairement
+            Stage stagePrincipal = (Stage) zoneTexteSource.getScene().getWindow();
+            stagePrincipal.setIconified(true);
+
+            // Attendre un peu que la fenêtre se minimise
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    Platform.runLater(() -> {
+                        try {
+                            creerOverlaySelection();
+                        } catch (Exception e) {
+                            System.err.println("Erreur lors de la création de l'overlay: " + e.getMessage());
+                            stagePrincipal.setIconified(false); // Restaurer en cas d'erreur
+                        }
+                    });
+                }
+            }, 500);
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors du démarrage de la capture: " + e.getMessage());
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Erreur de capture");
+            alert.setContentText("Impossible de démarrer la capture d'écran: " + e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
+    /**
+     * Créer l'overlay de sélection sur tous les écrans
+     */
+    private void creerOverlaySelection() throws Exception {
+        // Obtenir les dimensions de tous les écrans
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice[] screens = ge.getScreenDevices();
+
+        // Calculer la zone totale de tous les écrans
+        Rectangle zoneTotale = new Rectangle();
+        for (GraphicsDevice screen : screens) {
+            Rectangle bounds = screen.getDefaultConfiguration().getBounds();
+            zoneTotale = zoneTotale.union(bounds);
+        }
+
+        System.out.println("Zone totale écrans: " + zoneTotale);
+
+        // Créer une capture complète de tous les écrans
+        Robot robot = new Robot();
+        BufferedImage captureComplete = robot.createScreenCapture(zoneTotale);
+
+        // Créer la fenêtre de sélection
+        Stage stageSelection = new Stage();
+        stageSelection.initStyle(StageStyle.TRANSPARENT);
+        stageSelection.setFullScreen(true);
+        stageSelection.setAlwaysOnTop(true);
+
+        // Canvas pour dessiner la sélection
+        Canvas canvas = new Canvas(zoneTotale.width, zoneTotale.height);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+
+        // Convertir l'image pour JavaFX
+        WritableImage fxImage = SwingFXUtils.toFXImage(captureComplete, null);
+
+        // Dessiner l'image de fond assombrie
+        gc.drawImage(fxImage, 0, 0);
+        gc.setFill(Color.color(0, 0, 0, 0.3)); // Overlay semi-transparent
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // Variables pour la sélection
+        final double[] startX = {0};
+        final double[] startY = {0};
+        final boolean[] isSelecting = {false};
+
+        // Gestion des événements de souris
+        canvas.setOnMousePressed((MouseEvent e) -> {
+            startX[0] = e.getX();
+            startY[0] = e.getY();
+            isSelecting[0] = true;
+            System.out.println("Début sélection: " + startX[0] + ", " + startY[0]);
+        });
+
+        canvas.setOnMouseDragged((MouseEvent e) -> {
+            if (isSelecting[0]) {
+                // Redessiner l'overlay
+                gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+                gc.drawImage(fxImage, 0, 0);
+                gc.setFill(Color.color(0, 0, 0, 0.3));
+                gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+                // Dessiner le rectangle de sélection
+                double x = Math.min(startX[0], e.getX());
+                double y = Math.min(startY[0], e.getY());
+                double w = Math.abs(e.getX() - startX[0]);
+                double h = Math.abs(e.getY() - startY[0]);
+
+                // Zone claire (sélectionnée)
+                gc.clearRect(x, y, w, h);
+                gc.drawImage(fxImage, x, y, w, h, x, y, w, h);
+
+                // Bordure de sélection
+                gc.setStroke(Color.RED);
+                gc.setLineWidth(2);
+                gc.strokeRect(x, y, w, h);
+            }
+        });
+
+        int xZt = zoneTotale.x; int yZt =  zoneTotale.y;
+        canvas.setOnMouseReleased((MouseEvent e) -> {
+            if (isSelecting[0]) {
+                isSelecting[0] = false;
+
+                // Calculer la zone sélectionnée
+                double x = Math.min(startX[0], e.getX()) + xZt;
+                double y = Math.min(startY[0], e.getY()) + yZt;
+                double w = Math.abs(e.getX() - startX[0]);
+                double h = Math.abs(e.getY() - startY[0]);
+
+                Rectangle zoneSelection = new Rectangle((int)x, (int)y, (int)w, (int)h);
+                System.out.println("Zone sélectionnée: " + zoneSelection);
+
+                // Fermer l'overlay
+                stageSelection.close();
+
+                // Traiter la capture
+                if (w > 10 && h > 10) { // Sélection minimale
+                    traiterCaptureZone(zoneSelection);
+                } else {
+                    System.out.println("Sélection trop petite ignorée");
+                    restaurerFenetrePrincipale();
+                }
+            }
+        });
+
+        // Échapper pour annuler
+        canvas.setOnKeyPressed(keyEvent -> {
+            if (keyEvent.getCode().getName().equals("ESCAPE")) {
+                stageSelection.close();
+                restaurerFenetrePrincipale();
+            }
+        });
+
+        // Créer la scène
+        VBox root = new VBox();
+        root.getChildren().add(canvas);
+        root.setStyle("-fx-background-color: transparent;");
+
+        Scene scene = new Scene(root, zoneTotale.width, zoneTotale.height);
+        scene.setFill(Color.TRANSPARENT);
+        stageSelection.setScene(scene);
+
+        // Positionner la fenêtre
+        stageSelection.setX(zoneTotale.x);
+        stageSelection.setY(zoneTotale.y);
+
+        // Afficher
+        stageSelection.show();
+        canvas.requestFocus();
+
+        System.out.println("Overlay de sélection créé");
+    }
+
+    /**
+     * Traiter la capture de la zone sélectionnée
+     */
+    private void traiterCaptureZone(Rectangle zone) {
+        Task<String> tacheOCR = new Task<String>() {
+            @Override
+            protected String call() throws Exception {
+                // Capturer la zone spécifique
+                Robot robot = new Robot();
+                BufferedImage capture = robot.createScreenCapture(zone);
+
+                // Sauvegarder temporairement l'image
+                File tempFile = File.createTempFile("capture_ocr_", ".png");
+                ImageIO.write(capture, "PNG", tempFile);
+
+                System.out.println("Image capturée sauvée: " + tempFile.getAbsolutePath());
+
+                // Effectuer l'OCR
+                String texteExtrait = effectuerOCR(tempFile);
+
+                // Nettoyer le fichier temporaire
+                tempFile.delete();
+
+                return texteExtrait;
+            }
+
+            @Override
+            protected void succeeded() {
+                String texte = getValue();
+
+                Platform.runLater(() -> {
+                    if (texte != null && !texte.trim().isEmpty()) {
+                        System.out.println("Texte OCR extrait: " + texte);
+                        zoneTexteSource.setText(texte.trim());
+                        // La traduction se déclenchera automatiquement
+                    } else {
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("OCR");
+                        alert.setContentText("Aucun texte détecté dans la capture.\nEssayez avec une image plus nette ou une zone plus grande.");
+                        alert.showAndWait();
+                    }
+                    restaurerFenetrePrincipale();
+                });
+            }
+
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    System.err.println("Erreur OCR: " + getException().getMessage());
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur OCR");
+                    alert.setContentText("Erreur lors de l'extraction du texte: " + getException().getMessage());
+                    alert.showAndWait();
+                    restaurerFenetrePrincipale();
+                });
+            }
+        };
+
+        // Afficher l'indicateur de progression
+        Platform.runLater(() -> {
+            indicateurProgres.setVisible(true);
+            Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
+            stage.setTitle("🔍 Extraction du texte en cours...");
+        });
+
+        Thread threadOCR = new Thread(tacheOCR);
+        threadOCR.setDaemon(true);
+        threadOCR.start();
+    }
+
+    /**
+     * Effectuer l'OCR sur l'image capturée
+     */
+    private String effectuerOCR(File imageFile) throws Exception {
+        // Utiliser l'API OCR.space (gratuite) pour l'extraction de texte
+        String apiKey = "K87899142388957"; // Clé publique de démonstration
+        String url = "https://api.ocr.space/parse/image";
+
+        // Préparer la requête multipart
+        String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        connection.setRequestProperty("apikey", apiKey);
+        connection.setDoOutput(true);
+        connection.setConnectTimeout(30000);
+        connection.setReadTimeout(30000);
+
+        try (OutputStream os = connection.getOutputStream();
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, "UTF-8"), true)) {
+
+            // Paramètres OCR
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"language\"").append("\r\n");
+            writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append("eng").append("\r\n"); // Langue par défaut anglais
+
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"isOverlayRequired\"").append("\r\n");
+            writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append("false").append("\r\n");
+
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"detectOrientation\"").append("\r\n");
+            writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append("true").append("\r\n");
+
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"scale\"").append("\r\n");
+            writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append("true").append("\r\n");
+
+            // Fichier image
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"").append(imageFile.getName()).append("\"").append("\r\n");
+            writer.append("Content-Type: image/png").append("\r\n");
+            writer.append("\r\n").flush();
+
+            // Copier le fichier
+            Files.copy(imageFile.toPath(), os);
+            os.flush();
+
+            writer.append("\r\n").flush();
+            writer.append("--").append(boundary).append("--").append("\r\n").flush();
+        }
+
+        // Lire la réponse
+        int responseCode = connection.getResponseCode();
+        System.out.println("Code de réponse OCR: " + responseCode);
+
+        if (responseCode == 200) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+
+                // Parser la réponse JSON
+                JsonObject jsonResponse = JsonParser.parseString(response.toString()).getAsJsonObject();
+                System.out.println("Réponse OCR: " + jsonResponse.toString());
+
+                if (jsonResponse.has("ParsedResults") && jsonResponse.get("ParsedResults").isJsonArray()) {
+                    JsonArray results = jsonResponse.getAsJsonArray("ParsedResults");
+                    if (results.size() > 0) {
+                        JsonObject result = results.get(0).getAsJsonObject();
+                        if (result.has("ParsedText")) {
+                            return result.get("ParsedText").getAsString();
+                        }
+                    }
+                }
+
+                // Vérifier les erreurs
+                if (jsonResponse.has("ErrorMessage") && !jsonResponse.get("ErrorMessage").isJsonNull()) {
+                    throw new Exception("Erreur OCR: " + jsonResponse.get("ErrorMessage").getAsString());
+                }
+
+                return "";
+            }
+        } else {
+            throw new Exception("Erreur HTTP: " + responseCode + " " + connection.getResponseMessage());
+        }
+    }
+
+    /**
+     * Restaurer la fenêtre principale
+     */
+    private void restaurerFenetrePrincipale() {
+        Platform.runLater(() -> {
+            try {
+                Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
+                stage.setIconified(false);
+                stage.toFront();
+                stage.requestFocus();
+                stage.setTitle("Traducteur Automatique");
+                indicateurProgres.setVisible(false);
+                System.out.println("Fenêtre principale restaurée");
+            } catch (Exception e) {
+                System.err.println("Erreur lors de la restauration: " + e.getMessage());
+            }
+        });
     }
 
     /**

@@ -17,6 +17,7 @@
     </properties>
 
     <dependencies>
+        <!-- Gson pour le parsing JSON -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -36,7 +37,15 @@
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
         </dependency>
+
+        <!-- JavaFX Swing (pour SwingFXUtils) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
     </dependencies>
+
 
     <!-- Profils pour différents environnements -->
     <profiles>
