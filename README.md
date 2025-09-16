@@ -264,7 +264,8 @@ Une application Java Swing moderne de traduction automatique avec surveillance d
 auto-translate-swing/
 ├── pom.xml                          # Configuration Maven avec FlatLaf
 ├── README.md                        # Documentation complète
-├── run.bat                          # Script de lancement Windows
+├── run.bat                          # Script de lancement Windows + commandes
+├── go.bat                          # Script de lancement Windows simple
 ├── run.sh                           # Script de lancement Linux/Mac
 ├── src/
 │   └── main/
@@ -321,6 +322,7 @@ Par défaut, l'application utilise l'API OCR.space gratuite. Vous pouvez modifie
 mvn clean compile
 
 # Ou utiliser les scripts fournis
+go.bat    # Windows simple run
 run.bat    # Windows
 ./run.sh   # Linux/Mac
 ```

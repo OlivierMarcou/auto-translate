@@ -117,7 +117,7 @@ Pour chaque release, la CI/CD crée :
     - Parfait pour une distribution complète
 
 4. **Scripts de lancement**
-    - `run.bat` (Windows)
+    - `go.bat` (Windows)
     - `run.sh` (Linux/Mac)
 
 5. **Documentation**

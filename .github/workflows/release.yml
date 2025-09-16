@@ -159,6 +159,7 @@ jobs:
           
           # Copier les scripts et documentation
           cp run.bat "release-${VERSION}/" 2>/dev/null || echo "⚠️ run.bat non trouvé"
+          cp go.bat "release-${VERSION}/" 2>/dev/null || echo "⚠️ go.bat non trouvé"
           cp run.sh "release-${VERSION}/" 2>/dev/null || echo "⚠️ run.sh non trouvé"
           cp README.md "release-${VERSION}/" 2>/dev/null || echo "⚠️ README.md non trouvé"
           
@@ -336,6 +337,7 @@ jobs:
           echo "  - traducteur-automatique-${{ steps.get_version.outputs.VERSION }}-shaded.jar"
           echo "  - traducteur-automatique-${{ steps.get_version.outputs.VERSION }}-complete.zip"
           echo "  - run.bat"
+          echo "  - go.bat"
           echo "  - run.sh"
           echo "  - README.md"
           echo ""
