@@ -649,6 +649,7 @@ public class TraducteurAutomatique extends JFrame {
             overlayWindow.setBackground(new Color(0, 0, 0, 100)); // Semi-transparent
 
             // Panel personnalisé pour la sélection
+            Rectangle finalZoneTotale = zoneTotale;
             JPanel overlayPanel = new JPanel() {
                 @Override
                 protected void paintComponent(Graphics g) {
@@ -656,7 +657,7 @@ public class TraducteurAutomatique extends JFrame {
                     Graphics2D g2d = (Graphics2D) g.create();
 
                     // Dessiner l'image de fond assombrie
-                    g2d.drawImage(captureComplete, -zoneTotale.x, -zoneTotale.y, null);
+                    g2d.drawImage(captureComplete, -finalZoneTotale.x, -finalZoneTotale.y, null);
                     g2d.setColor(new Color(0, 0, 0, 80));
                     g2d.fillRect(0, 0, getWidth(), getHeight());
 
@@ -665,8 +666,8 @@ public class TraducteurAutomatique extends JFrame {
                         Rectangle sel = zoneSelection[0];
 
                         // Zone claire (sélectionnée)
-                        int localX = sel.x - zoneTotale.x;
-                        int localY = sel.y - zoneTotale.y;
+                        int localX = sel.x - finalZoneTotale.x;
+                        int localY = sel.y - finalZoneTotale.y;
 
                         if (localX >= 0 && localY >= 0 &&
                                 localX + sel.width <= getWidth() && localY + sel.height <= getHeight()) {
@@ -721,11 +722,12 @@ public class TraducteurAutomatique extends JFrame {
             };
 
             // Gestion des événements souris
+            Rectangle finalZoneTotale1 = zoneTotale;
             overlayPanel.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    startX[0] = e.getX() + zoneTotale.x;
-                    startY[0] = e.getY() + zoneTotale.y;
+                    startX[0] = e.getX() + finalZoneTotale1.x;
+                    startY[0] = e.getY() + finalZoneTotale1.y;
                     isSelecting[0] = true;
                     System.out.println("Début sélection globale: " + startX[0] + ", " + startY[0]);
                 }
@@ -751,12 +753,13 @@ public class TraducteurAutomatique extends JFrame {
                 }
             });
 
+            Rectangle finalZoneTotale2 = zoneTotale;
             overlayPanel.addMouseMotionListener(new MouseMotionAdapter() {
                 @Override
                 public void mouseDragged(MouseEvent e) {
                     if (isSelecting[0]) {
-                        int endX = e.getX() + zoneTotale.x;
-                        int endY = e.getY() + zoneTotale.y;
+                        int endX = e.getX() + finalZoneTotale2.x;
+                        int endY = e.getY() + finalZoneTotale2.y;
 
                         int x = Math.min(startX[0], endX);
                         int y = Math.min(startY[0], endY);
@@ -1521,9 +1524,16 @@ public class TraducteurAutomatique extends JFrame {
         } catch (Exception e) {
             System.err.println("Impossible d'initialiser FlatLaf, utilisation du thème par défaut: " + e.getMessage());
             try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeel());
+                // Utiliser le Look and Feel système par défaut
+                for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    if ("Nimbus".equals(info.getName())) {
+                        UIManager.setLookAndFeel(info.getClassName());
+                        break;
+                    }
+                }
             } catch (Exception ex) {
                 System.err.println("Impossible d'initialiser le thème système: " + ex.getMessage());
+                // Garder le Look and Feel par défaut de Java
             }
         }
 
