@@ -272,7 +272,7 @@ jobs:
             RELEASE_DATA=$(cat << EOF
           {
             "tag_name": "$TAG",
-            "target_commitish": "main",
+            "target_commitish": "master",
             "name": "🎉 Traducteur Automatique v$VERSION",
             "body": $(cat release_body.md | jq -Rs .),
             "draft": false,
