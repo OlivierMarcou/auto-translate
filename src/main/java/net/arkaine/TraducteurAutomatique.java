@@ -296,6 +296,14 @@ public class TraducteurAutomatique extends Application {
             return;
         }
 
+        // Vérifications de sécurité et de qualité
+        String messageErreur = validerTexteATraduire(texte);
+        if (messageErreur != null) {
+            zoneTexteDestination.setText(messageErreur);
+            labelLangueDetectee.setText("⚠️ Texte non traduit");
+            return;
+        }
+
         String langueDestination = langues.get(comboLangueDestination.getValue());
 
         Task<String[]> tacheTraduction = new Task<String[]>() {
@@ -434,6 +442,119 @@ public class TraducteurAutomatique extends Application {
         }
 
         throw new Exception("Réponse MyMemory invalide pour traduction forcée");
+    }
+
+    /**
+     * Valider le texte avant traduction (éviter code source, textes trop longs, etc.)
+     */
+    private String validerTexteATraduire(String texte) {
+        // Limite de longueur (5000 caractères)
+        if (texte.length() > 5000) {
+            return "⚠️ Texte trop long pour la traduction (max 5000 caractères).\n" +
+                    "Longueur actuelle : " + texte.length() + " caractères.\n" +
+                    "Veuillez raccourcir le texte ou le diviser en plusieurs parties.";
+        }
+
+        // Détecter du code source potentiel
+        if (ressembleADuCode(texte)) {
+            return "🚫 Ce texte ressemble à du code source ou à un format technique.\n" +
+                    "Les traductions de code peuvent causer des erreurs.\n" +
+                    "Si vous souhaitez vraiment traduire ce contenu, " +
+                    "copiez seulement les commentaires ou la documentation.";
+        }
+
+        // Détecter trop de caractères spéciaux (peut être du binaire, logs, etc.)
+        if (tropDeCaracteresSpeciaux(texte)) {
+            return "⚠️ Ce texte contient trop de caractères spéciaux ou de symboles.\n" +
+                    "Il pourrait s'agir de données binaires, logs système, ou format technique.\n" +
+                    "Vérifiez que c'est bien du texte naturel à traduire.";
+        }
+
+        return null; // Texte valide
+    }
+
+    /**
+     * Détecter si le texte ressemble à du code source
+     */
+    private boolean ressembleADuCode(String texte) {
+        // Compter les indicateurs de code
+        int indicateursCode = 0;
+
+        // Patterns de code courants
+        if (texte.matches(".*\\b(public|private|protected|class|interface|import|package|function|def|var|let|const|return|if|else|while|for|try|catch|throw)\\b.*")) {
+            indicateursCode += 3;
+        }
+
+        // Balises HTML/XML
+        if (texte.matches(".*<[a-zA-Z][^>]*>.*") || texte.matches(".*</[a-zA-Z][^>]*>.*")) {
+            indicateursCode += 2;
+        }
+
+        // JSON/YAML
+        if (texte.matches(".*\\{[\"']\\w+[\"']\\s*:.*") || texte.matches(".*:\\s*[\"'].*[\"'].*")) {
+            indicateursCode += 2;
+        }
+
+        // Expressions régulières ou patterns
+        if (texte.matches(".*\\\\[nrtbf].*") || texte.matches(".*\\[\\^.*\\].*")) {
+            indicateursCode += 1;
+        }
+
+        // Accolades et parenthèses nombreuses (fonctions, objets)
+        long accolades = texte.chars().filter(c -> c == '{' || c == '}').count();
+        long parentheses = texte.chars().filter(c -> c == '(' || c == ')').count();
+        if (accolades > 3 || parentheses > 10) {
+            indicateursCode += 1;
+        }
+
+        // Points-virgules multiples (instructions)
+        if (texte.chars().filter(c -> c == ';').count() > 3) {
+            indicateursCode += 1;
+        }
+
+        // Mots techniques fréquents
+        String[] motsTechniques = {"null", "undefined", "boolean", "string", "array", "object",
+                "href", "src", "onclick", "getElementById", "querySelector",
+                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE",
+                "git", "commit", "push", "pull", "branch", "merge"};
+        for (String mot : motsTechniques) {
+            if (texte.toLowerCase().contains(mot.toLowerCase())) {
+                indicateursCode += 1;
+            }
+        }
+
+        // Extensions de fichiers
+        if (texte.matches(".*\\.(js|java|py|php|html|css|xml|json|yml|yaml|sql|sh|bat)\\b.*")) {
+            indicateursCode += 2;
+        }
+
+        // URLs nombreuses
+        if (texte.split("https?://").length > 3) {
+            indicateursCode += 1;
+        }
+
+        // Seuil de détection : si 4+ indicateurs, probablement du code
+        return indicateursCode >= 4;
+    }
+
+    /**
+     * Détecter trop de caractères spéciaux
+     */
+    private boolean tropDeCaracteresSpeciaux(String texte) {
+        if (texte.length() < 50) return false; // Ignorer les textes courts
+
+        // Compter les caractères non-alphabétiques (hors espaces et ponctuation courante)
+        long caracteresSpeciaux = texte.chars()
+                .filter(c -> !Character.isLetterOrDigit(c) &&
+                        c != ' ' && c != '.' && c != ',' && c != '!' && c != '?' &&
+                        c != ':' && c != ';' && c != '\n' && c != '\r' && c != '\t' &&
+                        c != '-' && c != '_' && c != '\'' && c != '"' && c != '(' && c != ')' &&
+                        c != '[' && c != ']')
+                .count();
+
+        // Si plus de 25% de caractères spéciaux, probablement pas du texte naturel
+        double ratioSpeciaux = (double) caracteresSpeciaux / texte.length();
+        return ratioSpeciaux > 0.25;
     }
 
     /**

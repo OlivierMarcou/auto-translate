@@ -10,35 +10,51 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 ## 📋 Fonctionnalités
 
 ### ✨ Fonctionnalités Principales
-- **Sélection intelligente de la langue source** - Détection automatique OU choix manuel parmi 20 langues
+- **Sélection de langue source** - Détection automatique OU choix manuel de la langue à traduire
+- **Détection automatique intelligente** - Reconnaissance précise de la langue source avec fallbacks multiples
 - **Traduction en temps réel** - Traduction instantanée dès la saisie ou la sélection de texte
-- **Inversion bidirectionnelle** - Bouton ⇄ pour échanger instantanément les langues et textes
-- **Surveillance intelligente du presse-papiers** - Traduction automatique de tout texte copié depuis d'autres applications (désactivée quand l'app a le focus)
-- **Changement de langue instantané** - Retraduction automatique lors du changement de langue source ou destination
+- **Filtres de sécurité intelligents** - Protection contre la traduction de code source et textes inappropriés
+- **Inversion des langues (⇄)** - Bouton pour inverser instantanément source ↔ destination avec échange des textes
+- **Surveillance intelligente du presse-papiers** - Traduction automatique de tout texte copié avec filtrage automatique
+- **Changement de langue instantané** - Retraduction automatique lors du changement de langue
 - **Raccourci clavier intelligent** - `Ctrl+C` contextuel (copie sélection dans zone source, copie traduction ailleurs)
-- **Double API de traduction** - MyMemory API (priorité) + Google Translate (fallback) pour une fiabilité maximale
+- **Double API de traduction** - MyMemory (priorité) + Google Translate (fallback) pour une fiabilité maximale
 - **Logging automatique** - Enregistrement de toutes les traductions dans des fichiers CSV quotidiens
-- **Interface intuitive** - Design moderne et ergonomique avec feedback visuel
+- **Interface moderne** - Design ergonomique et intuitif avec feedback visuel
 
-### 🔧 Nouvelles Améliorations (v2.0)
-- **Sélecteur de langue source** - Choix entre "Détection automatique" et sélection manuelle
-- **Système de traduction dual** - MyMemory API (plus fiable) + Google Translate en fallback
-- **Parsing JSON robuste** - Utilisation de Gson pour traiter les réponses complexes
-- **Inversion complète** - Échange bidirectionnel des langues et contenus
-- **Détection linguistique améliorée** - Algorithmes basés sur patterns + caractères spéciaux
-- **Interface reorganisée** - Layout "De → Vers" plus intuitif
-- **Gestion d'erreurs renforcée** - Timeouts, fallbacks et messages d'état
+### 🛡️ Filtres de Sécurité Intelligents
+- **Protection contre le code source** : Détection automatique et refus de traduire du code (JavaScript, Java, Python, HTML, CSS, SQL, JSON, etc.)
+- **Limite de longueur intelligente** : Maximum 5000 caractères pour la traduction manuelle, 2000 pour le clipboard
+- **Filtre de caractères spéciaux** : Évite la traduction de données binaires, logs système, ou formats techniques
+- **Messages explicatifs** : Interface claire indiquant pourquoi un texte n'est pas traduit
+- **Surveillance adaptée** : Le clipboard ignore automatiquement le code source sans notification intrusive
+- **Mode automatique** (par défaut) : Détection intelligente avec patterns linguistiques + Google Translate
+- **Mode manuel** : Choix explicite de la langue source parmi 20+ langues supportées
+- **Affichage intelligent** : "Langue détectée" vs "Langue sélectionnée" selon le mode
+- **Traduction forcée** : Respecte le choix manuel même si le texte semble être dans une autre langue
+
+### 🔧 Sélection de Langue Source
+- **Bouton ⇄ intuitif** : Situé entre les sélecteurs de langues
+- **Inversion complète** : Échange automatique des textes ET des langues sélectionnées
+- **Gestion intelligente** : Prend en compte le mode de détection (auto/manuel)
+- **Feedback visuel** : Message temporaire "🔄 Langues inversées !" dans la barre de titre
+
+### 🌐 APIs de Traduction Robustes
+- **MyMemory API** (priorité) : Plus stable et fiable pour les textes complexes
+- **Google Translate** (fallback) : Parsing JSON amélioré avec Gson + regex de secours
+- **Gestion d'erreurs avancée** : Système de fallback automatique entre APIs
+- **Parsing robuste** : Extraction complète des traductions longues et complexes
 
 ### 📊 Système de Logging Avancé
 - **Fichiers CSV quotidiens** - Un nouveau fichier chaque jour (`traductions_YYYYMMDD.csv`)
 - **Horodatage précis** - Date et heure de chaque traduction
-- **Données complètes** - Texte source, traduction, langues source et destination
+- **Données complètes** - Texte source, traduction, langues détectées/sélectionnées
 - **Format standard** - Compatible Excel, LibreOffice, Google Sheets
 - **Dossier organisé** - Tous les logs dans le dossier `logs/`
 
-### 🌍 Langues Supportées (20 langues)
-- Français (par défaut destination)
-- Anglais (par défaut source auto)
+### 🌍 Langues Supportées (20+)
+- Français (par défaut)
+- Anglais
 - Espagnol
 - Allemand
 - Italien
@@ -93,49 +109,68 @@ mvn clean package
 java -jar target/auto-translate-1.0-SNAPSHOT-shaded.jar
 ```
 
-## 🖥️ Guide d'Utilisation
+## 🖥️ Utilisation
 
-### Interface Utilisateur
+### Interface Utilisateur Moderne
 
-1. **Sélecteur de langue source** - Choisissez "Détection automatique" ou une langue spécifique
-2. **Bouton d'inversion ⇄** - Échange instantané des langues et des textes
-3. **Sélecteur de langue de destination** - Langue cible de la traduction (français par défaut)
-4. **Indicateur de langue** - Affiche la langue détectée/sélectionnée
-5. **Zone de texte source** - Saisissez ou collez votre texte à traduire
-6. **Zone de traduction** - Consultez la traduction en temps réel
-7. **Bouton "Copier la traduction (Ctrl+C)"** - Copiez facilement la traduction
-8. **Case "Surveiller le presse-papiers"** - Activez/désactivez la surveillance automatique
-9. **Astuce d'utilisation** - Guide contextuel affiché en bas
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ De: [Détection automatique ▼] ⇄ Vers: [Français ▼]              │
+│ Langue détectée : Anglais                                        │
+│                                                                  │
+│ Texte à traduire :                                               │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ Bonjour, comment allez-vous aujourd'hui ?                   │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+│ [Traduire] ◐                                                    │
+│                                                                  │
+│ Traduction :                                                     │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ Hello, how are you today?                                    │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+│ [Copier la traduction (Ctrl+C)]                                 │
+│                                                                  │
+│ ─────────────────────────────────────────────────────────────    │
+│ ☑ Surveiller le presse-papiers                                  │
+│ 💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction auto     │
+│ 🚫 Code source et textes > 5000 caractères filtrés auto         │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ### Modes d'utilisation
 
-#### 🔍 Détection automatique (par défaut)
-- **Sélectionnez** : "Détection automatique" dans le menu de langue source
-- **Fonctionnement** : L'app détecte automatiquement la langue du texte saisi
-- **Affichage** : "Langue détectée : [Langue]"
-- **Idéal pour** : Usage général avec textes de langues variées
+#### 🎯 Sélection de langue source
+- **Détection automatique** : Laissez l'IA détecter la langue (recommandé)
+- **Sélection manuelle** : Choisissez explicitement la langue source
+- **Cas d'usage manuel** : Textes ambigus, noms propres, ou forcer une interprétation
 
-#### 🎯 Sélection manuelle de langue
-- **Sélectionnez** : Une langue spécifique dans le menu source
-- **Fonctionnement** : Force la traduction depuis cette langue
-- **Affichage** : "Langue sélectionnée : [Langue]"
-- **Idéal pour** : Textes ambigus ou correction de mauvaise détection
+#### 🔄 Inversion des langues
+- **Utilisation** : Cliquez sur le bouton ⇄ pour inverser source ↔ destination
+- **Effet** : Échange automatique des textes ET des sélecteurs de langues
+- **Exemple** : EN→FR ("Hello") devient FR→EN ("Bonjour")
 
-#### 🔄 Inversion bidirectionnelle
-- **Cliquez** : Sur le bouton ⇄ entre les sélecteurs de langues
-- **Résultat** :
-   - La traduction devient le texte source
-   - Les langues source et destination s'échangent
-   - Nouvelle traduction dans l'autre sens
-- **Feedback** : "🔄 Langues inversées !" dans la barre de titre
+#### 🛡️ Filtres de sécurité automatiques
+- **Protection contre le code** : JavaScript, Java, Python, HTML, SQL, JSON automatiquement détectés et filtrés
+- **Limite de texte** : 5000 caractères max (saisie) / 2000 caractères max (clipboard)
+- **Messages explicatifs** : Interface claire expliquant pourquoi certains textes ne sont pas traduits
+- **Exemples de textes filtrés** :
+    - ❌ `function hello() { return "world"; }`
+    - ❌ `<div class="container">Hello</div>`
+    - ❌ `{"name": "John", "age": 30}`
+    - ❌ Fichiers logs, données binaires
+    - ✅ `Hello, how are you today? I'm fine, thanks!`
 
 #### 🖊️ Saisie manuelle
 - Tapez directement dans la zone source
 - La traduction apparaît automatiquement après 1 seconde
+- Changement de langue = retraduction instantanée
 
 #### 📋 Surveillance intelligente du presse-papiers
 - **Quand l'app est en arrière-plan** : Copiez du texte depuis n'importe quelle application → Traduction automatique
 - **Quand l'app a le focus** : Surveillance désactivée pour éviter les conflits
+- **Filtrage automatique** : Code source et textes longs ignorés silencieusement
+- **Limite clipboard** : 2000 caractères maximum (plus strict que la saisie manuelle)
+- **Messages de débogage** : Console indique les textes ignorés avec leurs raisons
 - **Workflow optimal** : Sélection → `Ctrl+C` → Traduction auto → Cliquez sur l'app → `Ctrl+C` → Colle la traduction
 
 #### ⌨️ Raccourcis clavier intelligents
@@ -143,35 +178,18 @@ java -jar target/auto-translate-1.0-SNAPSHOT-shaded.jar
 - **`Ctrl+C` ailleurs dans l'app** : Copie toute la traduction
 - **Feedback visuel** : Titre de la fenêtre indique "✅ Traduction copiée!" pendant 2 secondes
 
-## 🛠️ Architecture et APIs
-
-### 🔗 Système de Traduction Double
-1. **MyMemory API** (priorité) - Plus fiable et stable
-2. **Google Translate API** (fallback) - Secours en cas d'échec MyMemory
-
-### 📊 Parsing JSON Robuste
-- **Gson** - Parsing principal des réponses JSON
-- **Regex de fallback** - En cas d'échec Gson
-- **Split traditionnel** - Dernière option de secours
-
-### 🧠 Détection de Langue Avancée
-- **Patterns linguistiques** - Analyse de mots-clés spécifiques par langue
-- **Caractères spéciaux** - Détection d'accents, ñ, ß, etc.
-- **Structure des mots** - Analyse longueur et capitalisation
-- **API Google** - Fallback pour les cas complexes
-
-## 🔧 Structure du Projet
+## 🛠️ Structure du Projet
 
 ```
 auto-translate/
-├── pom.xml                          # Configuration Maven
-├── README.md                        # Documentation
+├── pom.xml                          # Configuration Maven avec plugins améliorés
+├── README.md                        # Documentation complète
 ├── src/
 │   └── main/
 │       ├── java/
 │       │   ├── module-info.java     # Configuration des modules Java
 │       │   └── net/arkaine/
-│       │       └── TraducteurAutomatique.java  # Classe principale
+│       │       └── TraducteurAutomatique.java  # Classe principale avec nouvelles fonctionnalités
 │       └── resources/               # Ressources (icônes, etc.)
 ├── logs/                           # Dossier des logs (généré automatiquement)
 │   ├── traductions_20250115.csv   # Logs du 15 janvier 2025
@@ -190,26 +208,22 @@ Chaque jour, un nouveau fichier CSV est créé dans le dossier `logs/` :
 "2025-01-15 14:30:25","Hello world","Bonjour le monde","Anglais","Français"
 "2025-01-15 14:32:10","Como estas","Comment allez-vous","Espagnol","Français"
 "2025-01-15 14:35:42","Guten Tag","Bonjour","Allemand","Français"
+"2025-01-15 14:40:15","Summer Sisters Party...","Fête des Sœurs d'Été...","Anglais","Français"
 ```
 
 ### Caractéristiques du logging
 - **Fichier quotidien** : `traductions_YYYYMMDD.csv`
-- **En-têtes automatiques** : Ajoutés lors de la création du fichier
-- **Échappement CSV** : Gestion correcte des guillemets et virgules
+- **Mode de langue** : Indique si la langue était détectée automatiquement ou sélectionnée manuellement
+- **Textes longs supportés** : Gestion correcte des traductions complexes
+- **Échappement CSV** : Gestion correcte des guillemets, virgules et retours à la ligne
 - **Limitation de taille** : Textes tronqués à 1000 caractères si nécessaire
 - **Horodatage précis** : Format `yyyy-MM-dd HH:mm:ss`
-
-### Utilisation des logs
-- **Analyse d'usage** : Statistiques sur vos traductions
-- **Recherche** : Retrouvez d'anciennes traductions
-- **Export** : Ouvrez avec Excel, LibreOffice, Google Sheets
-- **Archivage** : Historique complet de votre activité
 
 ## 🔧 Configuration
 
 ### Variables d'environnement (optionnel)
 ```bash
-# Pour utiliser une API de traduction personnalisée (futur)
+# Pour utiliser une API de traduction personnalisée
 export TRANSLATION_API_KEY="votre-clé-api"
 ```
 
@@ -227,66 +241,96 @@ mvn dependency:resolve
 mvn dependency:tree | grep javafx
 ```
 
-#### ❌ Erreur de connexion réseau
+#### ❌ L'application traduit du code source ou des données techniques
+- ✅ **Résolu** avec les nouveaux filtres intelligents
+- Le système détecte automatiquement et refuse de traduire :
+    - Code source (JavaScript, Java, Python, HTML, CSS, SQL, JSON, etc.)
+    - Données binaires ou logs système
+    - Textes avec trop de caractères spéciaux
+- Messages explicatifs pour informer l'utilisateur
+- Filtrage silencieux pour la surveillance du clipboard
+
+#### ❌ Textes trop longs qui causent des erreurs
+- ✅ **Résolu** avec le nouveau système dual API (MyMemory + Google)
+- ✅ **Résolu** avec le parsing JSON robuste utilisant Gson
+- La version corrigée gère correctement les textes complexes comme "Summer Sisters Party Gradient..."
+
+#### ❌ Textes trop longs qui causent des erreurs
+- ✅ **Résolu** avec les limites intelligentes
+- Maximum 5000 caractères pour la saisie manuelle
+- Maximum 2000 caractères pour la surveillance du clipboard
+- Message clair indiquant la longueur actuelle et suggestions
+
+#### ❌ Traductions partielles ou incomplètes
+- Utilisez le **mode manuel** : sélectionnez explicitement la langue source
+- La détection automatique est maintenant plus précise avec des patterns linguistiques étendus
+
+#### ❌ Traductions partielles ou incomplètes
+- ✅ **Résolu** avec le nouveau système dual API (MyMemory + Google)
+- ✅ **Résolu** avec le parsing JSON robuste utilisant Gson
+- La version corrigée gère correctement les textes complexes
+
+#### ❌ Détection de langue incorrecte
 - Vérifiez votre connexion Internet
 - Certains firewalls d'entreprise peuvent bloquer les requêtes vers les APIs de traduction
-- Essayez de changer temporairement de réseau
+- Le système utilise maintenant deux APIs différentes pour plus de robustesse
 
 #### ❌ L'application ne surveille pas le presse-papiers
 - Vérifiez que la case "Surveiller le presse-papiers" est cochée
 - **Important** : La surveillance est automatiquement désactivée quand l'application a le focus (comportement normal)
 - Cliquez sur une autre application pour réactiver la surveillance
-- Sur certains systèmes, des permissions spéciales peuvent être requises
 
-#### ❌ Le raccourci Ctrl+C ne fonctionne pas comme attendu
-- **Dans la zone source** : `Ctrl+C` copie le texte sélectionné (normal)
-- **Ailleurs dans l'app** : `Ctrl+C` copie toute la traduction
-- Assurez-vous que l'application a le focus pour utiliser les raccourcis
-
-#### ❌ Traductions partielles ou incorrectes
-- **Essayez le mode manuel** : Sélectionnez la langue source au lieu de "Détection automatique"
-- **Vérifiez la langue détectée** : Parfois la détection peut se tromper
-- **Utilisez l'inversion** : Traduisez dans l'autre sens pour vérifier
-- **Textes complexes** : Les noms de produits peuvent être mal traduits (normal)
-
-#### ❌ Le bouton d'inversion ne fonctionne pas
-- Assurez-vous qu'il y a du texte dans les deux zones (source et traduction)
-- Vérifiez qu'une traduction a été effectuée avant d'essayer d'inverser
-- Le message "⚠️ Rien à inverser" apparaît s'il n'y a pas de contenu
-
-#### ❌ Les logs ne se créent pas
-- Vérifiez les permissions d'écriture dans le dossier du projet
-- Le dossier `logs/` est créé automatiquement au premier lancement
-- Consultez la console pour les messages d'erreur de logging
+#### ❌ Le bouton d'inversion ⇄ ne fonctionne pas
+- Assurez-vous qu'il y a du texte traduit à inverser
+- Le bouton affichera un message d'avertissement si aucune traduction n'est disponible
+- L'inversion fonctionne avec les deux modes (détection auto et sélection manuelle)
 
 ### Logs de débogage
 ```bash
 # Exécuter avec logs détaillés
 mvn javafx:run -X
+
+# Observer les messages dans la console
+# - "Traduction MyMemory réussie: ..."
+# - "Langue source pour MyMemory: en -> fr"
+# - "Inversion: Français -> Anglais"
+# - "Texte ignoré (code source détecté): class MyClass..."
+# - "Texte ignoré (trop long): 7543 caractères"
 ```
+
+## 🚀 Nouvelles Fonctionnalités v2.0
+
+### 🆕 Ce qui a été ajouté :
+
+1. **Sélection manuelle de langue source** 📋
+    - Dropdown "De:" avec "Détection automatique" + toutes les langues
+    - Mode forcé qui respecte le choix utilisateur
+
+2. **Inversion bidirectionnelle** 🔄
+    - Bouton ⇄ entre les sélecteurs
+    - Échange automatique textes + langues
+
+3. **Double API robuste** 🌐
+    - MyMemory (priorité) + Google Translate (fallback)
+    - Parsing JSON avec Gson pour plus de fiabilité
+
+4. **Interface repensée** 🎨
+    - Layout horizontal pour les langues
+    - Labels distincts et clairs
+    - Feedback visuel amélioré
+
+5. **Filtres de sécurité intelligents** 🛡️
+    - Détection automatique du code source
+    - Limites de longueur (5000/2000 caractères)
+    - Protection contre les données techniques
+    - Messages utilisateur explicatifs
 
 ## 🔒 Sécurité et Confidentialité
 
-- ⚠️ **Attention** : Cette application utilise des APIs gratuites (MyMemory, Google Translate)
+- ⚠️ **Attention** : Cette application utilise des APIs gratuites de traduction (MyMemory, Google Translate)
 - Le texte traduit transit par des serveurs externes
 - **Ne pas utiliser** pour des données sensibles ou confidentielles
-- Pour un usage professionnel, considérez l'utilisation d'APIs de traduction privées
-
-## 🆕 Nouveautés v2.0
-
-### ✨ Fonctionnalités ajoutées :
-- **Sélecteur de langue source** avec "Détection automatique"
-- **Bouton d'inversion ⇄** pour traduction bidirectionnelle
-- **Double API de traduction** (MyMemory + Google Translate)
-- **Parsing JSON robuste** avec Gson
-- **Détection linguistique améliorée** avec patterns avancés
-- **Interface reorganisée** plus intuitive
-
-### 🔧 Améliorations techniques :
-- **Gestion d'erreurs renforcée** avec timeouts et fallbacks
-- **Performances optimisées** avec cache de détection
-- **Code restructuré** pour une meilleure maintenabilité
-- **Feedback utilisateur** amélioré avec messages d'état
+- Pour un usage professionnel, considérez l'utilisation d'APIs de traduction privées ou on-premise
 
 ## 🤝 Contribution
 
@@ -298,22 +342,19 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 4. **Push** vers la branch (`git push origin feature/AmazingFeature`)
 5. Ouvrez une **Pull Request**
 
-### Idées d'améliorations
-- [ ] Support d'APIs de traduction alternatives (DeepL, Azure Translator)
+### Idées d'améliorations futures
+- [ ] Support d'APIs de traduction alternatives (DeepL, Azure, etc.)
 - [ ] Interface de consultation des historiques de traductions avec recherche
-- [ ] Statistiques visuelles des langues les plus utilisées (graphiques)
-- [ ] Raccourcis clavier globaux (système) pour traduction instantanée
-- [ ] Mode sombre et thèmes personnalisables
-- [ ] Détection de la langue par analyse de fichiers
-- [ ] Export personnalisé des logs (JSON, XML, PDF)
-- [ ] Configuration personnalisable des raccourcis clavier
-- [ ] Notifications système pour les traductions automatiques
-- [ ] Cache local intelligent pour les traductions fréquentes
-- [ ] Plugin système pour intégration OS (Windows/Linux/macOS)
-- [ ] API REST locale pour intégration avec d'autres apps
-- [ ] Support de traduction de fichiers (PDF, DOCX, etc.)
-- [ ] Correcteur orthographique intégré
-- [ ] Suggestions de traductions alternatives
+- [ ] Statistiques visuelles des langues les plus utilisées
+- [ ] Raccourcis clavier globaux (système)
+- [ ] Mode sombre / thèmes personnalisables
+- [ ] Détection de la langue par analyse de fichier
+- [ ] Export personnalisé des logs (JSON, XML)
+- [ ] Configuration personnalisable des raccourcis
+- [ ] Notifications système pour les traductions
+- [ ] Cache local pour les traductions fréquentes
+- [ ] Plugin système pour intégration OS
+- [ ] Support de la traduction de documents (PDF, DOCX)
 
 ## 📄 License
 
@@ -321,32 +362,21 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 ## 🙏 Remerciements
 
-- [OpenJFX](https://openjfx.io/) - Framework JavaFX moderne
+- [OpenJFX](https://openjfx.io/) - Framework JavaFX
 - [MyMemory API](https://mymemory.translated.net/) - Service de traduction principal
 - [Google Translate](https://translate.google.com/) - Service de traduction de fallback
 - [Gson](https://github.com/google/gson) - Parsing JSON robuste
-- [Maven](https://maven.apache.org/) - Gestionnaire de dépendances et build
+- [Maven](https://maven.apache.org/) - Gestionnaire de dépendances
 
-## 🎯 Workflows Recommandés
+## 🎯 Workflow Recommandé
 
-### 🌐 Navigation web classique
 ```
-Sélection sur site web → Ctrl+C → ✨ Traduction auto → Ctrl+C dans l'app → Ctrl+V
-```
-
-### 🔄 Traduction bidirectionnelle
-```
-Texte EN → FR → Clic ⇄ → Texte FR → EN (vérification)
-```
-
-### 🎯 Langue spécifique
-```
-Texte ambigu → Sélection manuelle langue source → Traduction précise
-```
-
-### 📊 Analyse d'usage
-```
-Utilisation quotidienne → Consultation logs/ → Statistiques personnelles
+🌐 Navigation web : Sélection + Ctrl+C → ✨ Traduction auto
+📝 Dans l'app : Ctrl+C → 📋 Copie la traduction  
+🔄 Inversion : Clic sur ⇄ → 🔃 Sens inversé
+🎯 Langue forcée : Sélection manuelle → 🎯 Traduction précise
+📤 Destination : Ctrl+V → ✅ Colle la traduction
+📊 Analyse : Consultez logs/ pour vos statistiques
 ```
 
 ## 📞 Support
@@ -355,19 +385,30 @@ Utilisation quotidienne → Consultation logs/ → Statistiques personnelles
 - 💬 **wiki** : [GitHub Discussions](https://github.com/OlivierMarcou/auto-translate/wiki)
 - 📧 **Email** : marcou.olivier@gmail.com
 - 📋 **Logs** : Consultez le dossier `logs/` pour le debugging
-- 🔧 **Debug** : Lancez avec `mvn javafx:run -X` pour logs détaillés
 
 ---
 
-## 🚀 Exemple d'Usage Complet
-
-```
-1. Lancez l'application : mvn javafx:run
-2. Copiez du texte depuis un site web → Traduction automatique
-3. Si la langue détectée est incorrecte → Changez le sélecteur source
-4. Pour traduire dans l'autre sens → Cliquez ⇄
-5. Copiez le résultat → Ctrl+C
-6. Consultez l'historique → Dossier logs/
-```
-
 ⭐ **N'oubliez pas de mettre une étoile si ce projet vous a été utile !**
+
+## 📈 Changelog v2.0
+
+### ✅ Corrections majeures :
+- **Fix traductions partielles** : Textes complexes maintenant traduits complètement
+- **Fix détection de langue** : MyMemory n'accepte plus "auto", gestion corrigée
+- **Fix parsing JSON** : Remplacement des split() fragiles par Gson + regex de fallback
+- **Fix sécurité** : Protection contre traduction de code source et données techniques
+- **Fix performance** : Limites intelligentes pour éviter les surcharges réseau
+
+### 🆕 Nouvelles fonctionnalités :
+- **Sélection manuelle langue source** : Dropdown avec "Détection automatique" + 20+ langues
+- **Inversion bidirectionnelle** : Bouton ⇄ pour échanger langues et textes
+- **Double API** : MyMemory (priorité) + Google Translate (fallback)
+- **Interface améliorée** : Layout repensé, labels distincts, feedback visuel
+- **Filtres intelligents** : Détection code source, limite longueur, messages explicatifs
+
+### 🔧 Améliorations techniques :
+- **Détection linguistique renforcée** : Patterns étendus + analyse structurelle
+- **Gestion d'erreurs robuste** : Fallbacks multiples entre APIs
+- **Parsing JSON avec Gson** : Plus fiable que les méthodes artisanales
+- **Configuration Maven améliorée** : Plugin shade pour JAR exécutables
+- **Validation des entrées** : Filtres de sécurité et qualité automatiques
