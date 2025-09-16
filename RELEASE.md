@@ -43,8 +43,8 @@ Si vous préférez faire les étapes manuellement :
 
 ```bash
 # Être sur main/master et à jour
-git checkout main
-git pull origin main
+git checkout master
+git pull origin master
 
 # Vérifier qu'il n'y a pas de modifications non commitées
 git status
@@ -85,7 +85,7 @@ git commit -m "🚀 Release v1.0.0"
 git tag -a v1.0.0 -m "Release v1.0.0"
 
 # Pousser
-git push origin main
+git push origin master
 git push origin v1.0.0
 ```
 

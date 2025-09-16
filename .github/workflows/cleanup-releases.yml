@@ -1,0 +1,81 @@
+name: 🧹 Nettoyage des Releases
+
+# Déclenchement manuel uniquement
+on:
+  workflow_dispatch:
+    inputs:
+      version_to_delete:
+        description: 'Version à supprimer (ex: 1.0.0)'
+        required: true
+        type: string
+      delete_tag:
+        description: 'Supprimer aussi le tag Git?'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  cleanup:
+    name: 🗑️ Suppression de Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Vérification des paramètres
+        run: |
+          VERSION="${{ github.event.inputs.version_to_delete }}"
+          DELETE_TAG="${{ github.event.inputs.delete_tag }}"
+          
+          echo "Version à supprimer: $VERSION"
+          echo "Supprimer le tag: $DELETE_TAG"
+          
+          if [ -z "$VERSION" ]; then
+            echo "❌ Version manquante"
+            exit 1
+          fi
+
+      - name: 🗑️ Suppression de la release
+        run: |
+          VERSION="${{ github.event.inputs.version_to_delete }}"
+          TAG="v$VERSION"
+          
+          echo "🔍 Vérification de l'existence de la release $TAG..."
+          
+          if gh release view "$TAG" &>/dev/null; then
+            echo "🗑️ Suppression de la release $TAG..."
+            gh release delete "$TAG" --yes
+            echo "✅ Release $TAG supprimée"
+          else
+            echo "⚠️ Release $TAG n'existe pas"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Suppression du tag (optionnel)
+        if: github.event.inputs.delete_tag == 'true'
+        run: |
+          VERSION="${{ github.event.inputs.version_to_delete }}"
+          TAG="v$VERSION"
+          
+          echo "🗑️ Suppression du tag $TAG..."
+          
+          # Supprimer le tag local (peut échouer si pas présent)
+          git tag -d "$TAG" 2>/dev/null || echo "Tag local absent"
+          
+          # Supprimer le tag distant
+          git push origin ":refs/tags/$TAG" 2>/dev/null || echo "Tag distant absent"
+          
+          echo "✅ Tag $TAG supprimé"
+
+      - name: 📋 Lister les releases restantes
+        run: |
+          echo "📋 Releases actuelles:"
+          gh release list || echo "Aucune release trouvée"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

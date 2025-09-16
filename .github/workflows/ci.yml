@@ -2,9 +2,9 @@ name: 🔍 CI - Tests et Validation
 
 on:
   push:
-    branches: [ main, develop, swing ]
+    branches: [ master, develop, swing ]
   pull_request:
-    branches: [ main, develop, swing ]
+    branches: [ master, develop, swing ]
 
 jobs:
   test:
