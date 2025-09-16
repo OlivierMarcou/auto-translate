@@ -34,9 +34,11 @@ public class TraducteurAutomatique extends Application {
 
     private TextArea zoneTexteSource;
     private TextArea zoneTexteDestination;
+    private ComboBox<String> comboLangueSource;
     private ComboBox<String> comboLangueDestination;
     private Label labelLangueDetectee;
     private ProgressIndicator indicateurProgres;
+    private String derniereLangueSourceDetectee = "en";
     private String dernierTexteClipboard = "";
     private String sauvegardeClipboard = "";
     private boolean applicationALeFocus = false;
@@ -63,20 +65,40 @@ public class TraducteurAutomatique extends Application {
         VBox root = new VBox(10);
         root.setPadding(new Insets(15));
 
-        // Zone de sélection de la langue de destination
-        HBox boxLangueDestination = new HBox(10);
-        Label labelDestination = new Label("Traduire vers :");
+        // Zone de sélection des langues avec bouton d'inversion
+        HBox boxLangues = new HBox(10);
+        boxLangues.setStyle("-fx-alignment: center-left;");
+
+        // Langue source
+        Label labelSourceLangue = new Label("De :");
+        comboLangueSource = new ComboBox<>();
+        comboLangueSource.getItems().add("Détection automatique");
+        comboLangueSource.getItems().addAll(langues.keySet());
+        comboLangueSource.setValue("Détection automatique"); // Par défaut
+        comboLangueSource.setPrefWidth(150);
+
+        // Bouton d'inversion des langues
+        Button boutonInverser = new Button("⇄");
+        boutonInverser.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 40px;");
+        boutonInverser.setTooltip(new Tooltip("Inverser les langues (source ↔ destination)"));
+        boutonInverser.setOnAction(e -> inverserLangues());
+
+        // Langue destination
+        Label labelDestinationLangue = new Label("Vers :");
         comboLangueDestination = new ComboBox<>();
         comboLangueDestination.getItems().addAll(langues.keySet());
         comboLangueDestination.setValue("Français"); // Par défaut
-        boxLangueDestination.getChildren().addAll(labelDestination, comboLangueDestination);
+        comboLangueDestination.setPrefWidth(150);
+
+        boxLangues.getChildren().addAll(labelSourceLangue, comboLangueSource, boutonInverser,
+                labelDestinationLangue, comboLangueDestination);
 
         // Zone d'affichage de la langue détectée
         labelLangueDetectee = new Label("Langue détectée : Aucune");
         labelLangueDetectee.setStyle("-fx-font-style: italic;");
 
         // Zone de texte source
-        Label labelSource = new Label("Texte à traduire :");
+        Label labelTexteSource = new Label("Texte à traduire :");
         zoneTexteSource = new TextArea();
         zoneTexteSource.setPrefRowCount(8);
         zoneTexteSource.setPromptText("Tapez ou collez votre texte ici...");
@@ -94,7 +116,7 @@ public class TraducteurAutomatique extends Application {
         boxBouton.getChildren().addAll(boutonTraduire, indicateurProgres);
 
         // Zone de texte destination
-        Label labelDestination2 = new Label("Traduction :");
+        Label labelTexteDestination = new Label("Traduction :");
         zoneTexteDestination = new TextArea();
         zoneTexteDestination.setPrefRowCount(8);
         zoneTexteDestination.setEditable(false);
@@ -114,12 +136,12 @@ public class TraducteurAutomatique extends Application {
 
         // Assemblage de l'interface
         root.getChildren().addAll(
-                boxLangueDestination,
+                boxLangues,
                 labelLangueDetectee,
-                labelSource,
+                labelTexteSource,
                 zoneTexteSource,
                 boxBouton,
-                labelDestination2,
+                labelTexteDestination,
                 zoneTexteDestination,
                 boutonCopier,
                 new Separator(),
@@ -174,6 +196,23 @@ public class TraducteurAutomatique extends Application {
                         Platform.runLater(() -> traduireTexte());
                     }
                 }, 1000);
+            }
+        });
+
+        // Traduction automatique quand la langue source change
+        comboLangueSource.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                String texte = zoneTexteSource.getText().trim();
+                if (!texte.isEmpty()) {
+                    // Mettre à jour l'affichage de la langue détectée
+                    if (newValue.equals("Détection automatique")) {
+                        labelLangueDetectee.setText("Langue détectée : Auto");
+                    } else {
+                        labelLangueDetectee.setText("Langue sélectionnée : " + newValue);
+                    }
+                    // Traduire immédiatement avec la nouvelle langue
+                    Platform.runLater(() -> traduireTexte());
+                }
             }
         });
 
@@ -262,20 +301,57 @@ public class TraducteurAutomatique extends Application {
         Task<String[]> tacheTraduction = new Task<String[]>() {
             @Override
             protected String[] call() throws Exception {
-                // Essayer d'abord avec l'API MyMemory (plus fiable)
-                try {
-                    String[] resultatMyMemory = traduireAvecMyMemory(texte, langueDestination);
-                    if (resultatMyMemory[1] != null && !resultatMyMemory[1].trim().isEmpty()
-                            && !resultatMyMemory[1].equals("NO QUERY SPECIFIED. EXAMPLE: GET?Q=HELLO&LANGPAIR=EN|IT")) {
-                        return resultatMyMemory;
+                String langueSource;
+
+                // Vérifier si l'utilisateur a sélectionné une langue source manuellement
+                String langueSourceSelectionnee = comboLangueSource.getValue();
+                if (langueSourceSelectionnee != null && !langueSourceSelectionnee.equals("Détection automatique")) {
+                    // Utiliser la langue sélectionnée manuellement
+                    langueSource = langues.get(langueSourceSelectionnee);
+                    System.out.println("Langue source manuelle: " + langueSourceSelectionnee + " (" + langueSource + ")");
+                } else {
+                    // Utiliser la détection automatique
+                    System.out.println("Détection automatique de la langue source...");
+
+                    // Essayer d'abord avec l'API MyMemory (plus fiable)
+                    try {
+                        String[] resultatMyMemory = traduireAvecMyMemory(texte, langueDestination);
+                        if (resultatMyMemory[1] != null && !resultatMyMemory[1].trim().isEmpty()
+                                && !resultatMyMemory[1].equals("NO QUERY SPECIFIED. EXAMPLE: GET?Q=HELLO&LANGPAIR=EN|IT")) {
+                            return resultatMyMemory;
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Erreur MyMemory, essai Google Translate: " + e.getMessage());
                     }
-                } catch (Exception e) {
-                    System.err.println("Erreur MyMemory, essai Google Translate: " + e.getMessage());
+
+                    // Fallback vers Google Translate avec parsing amélioré pour la détection
+                    langueSource = detecterLangueSimple(texte);
+                    if (langueSource.equals("en")) { // Si détection simple donne anglais, vérifier avec Google
+                        try {
+                            String langueDetecteeGoogle = detecterLangueAvecGoogle(texte);
+                            if (!langueDetecteeGoogle.equals("auto")) {
+                                langueSource = langueDetecteeGoogle;
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Détection Google échouée: " + e.getMessage());
+                        }
+                    }
                 }
 
-                // Fallback vers Google Translate avec parsing amélioré
-                String langueSource = detecterLangueAvecGoogle(texte);
-                String traduction = traduireAvecGoogleTranslateAmeliore(texte, langueSource, langueDestination);
+                // Traduire le texte
+                String traduction;
+                if (langueSourceSelectionnee != null && !langueSourceSelectionnee.equals("Détection automatique")) {
+                    // Forcer la traduction avec la langue choisie
+                    try {
+                        traduction = traduireAvecMyMemoryForce(texte, langueSource, langueDestination);
+                    } catch (Exception e) {
+                        traduction = traduireAvecGoogleTranslateAmeliore(texte, langueSource, langueDestination);
+                    }
+                } else {
+                    // Utiliser le système normal
+                    traduction = traduireAvecGoogleTranslateAmeliore(texte, langueSource, langueDestination);
+                }
+
                 return new String[]{langueSource, traduction};
             }
 
@@ -286,9 +362,19 @@ public class TraducteurAutomatique extends Application {
                 String traduction = resultat[1];
 
                 Platform.runLater(() -> {
-                    labelLangueDetectee.setText("Langue détectée : " + obtenirNomLangue(langueSource));
+                    // Affichage différencié selon le mode
+                    String langueSourceSelectionnee = comboLangueSource.getValue();
+                    if (langueSourceSelectionnee != null && !langueSourceSelectionnee.equals("Détection automatique")) {
+                        labelLangueDetectee.setText("Langue sélectionnée : " + langueSourceSelectionnee);
+                    } else {
+                        labelLangueDetectee.setText("Langue détectée : " + obtenirNomLangue(langueSource));
+                    }
+
                     zoneTexteDestination.setText(traduction);
                     indicateurProgres.setVisible(false);
+
+                    // Sauvegarder la dernière langue source pour l'inversion
+                    derniereLangueSourceDetectee = langueSource;
 
                     enregistrerTraduction(zoneTexteSource.getText().trim(), traduction, langueSource, langueDestination);
                 });
@@ -307,6 +393,47 @@ public class TraducteurAutomatique extends Application {
         Thread threadTraduction = new Thread(tacheTraduction);
         threadTraduction.setDaemon(true);
         threadTraduction.start();
+    }
+
+    /**
+     * Traduction forcée avec MyMemory (langue source spécifiée)
+     */
+    private String traduireAvecMyMemoryForce(String texte, String langueSource, String langueDestination) throws Exception {
+        // Construire l'URL pour MyMemory avec la langue source spécifiée
+        String langpair = langueSource + "|" + langueDestination;
+        String url = "https://api.mymemory.translated.net/get?q="
+                + URLEncoder.encode(texte, "UTF-8")
+                + "&langpair=" + langpair;
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (JavaFX Translation App)");
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(10000);
+
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(connection.getInputStream(), "UTF-8"));
+        StringBuilder response = new StringBuilder();
+        String line;
+
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        // Parser la réponse JSON avec Gson
+        JsonObject jsonResponse = JsonParser.parseString(response.toString()).getAsJsonObject();
+
+        if (jsonResponse.has("responseData") && !jsonResponse.get("responseData").isJsonNull()) {
+            JsonObject responseData = jsonResponse.getAsJsonObject("responseData");
+            if (responseData.has("translatedText")) {
+                String traduction = responseData.get("translatedText").getAsString();
+                System.out.println("Traduction MyMemory forcée réussie: " + traduction.substring(0, Math.min(50, traduction.length())));
+                return traduction;
+            }
+        }
+
+        throw new Exception("Réponse MyMemory invalide pour traduction forcée");
     }
 
     /**
@@ -532,6 +659,66 @@ public class TraducteurAutomatique extends Application {
 
         // Fallback
         return detecterLangueSimple(texte);
+    }
+
+    /**
+     * Inverser les langues source et destination
+     */
+    private void inverserLangues() {
+        // Vérifier qu'il y a du contenu à inverser
+        String texteSource = zoneTexteSource.getText().trim();
+        String traduction = zoneTexteDestination.getText().trim();
+
+        if (texteSource.isEmpty() || traduction.isEmpty()) {
+            // Afficher un message temporaire si pas de contenu
+            Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
+            String titreOriginal = stage.getTitle();
+            stage.setTitle("⚠️ Rien à inverser - Traduisez d'abord du texte");
+
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    Platform.runLater(() -> stage.setTitle(titreOriginal));
+                }
+            }, 2000);
+            return;
+        }
+
+        // Obtenir les langues actuelles
+        String langueSourceActuelle = comboLangueSource.getValue();
+        String langueDestinationActuelle = comboLangueDestination.getValue();
+
+        // Si la langue source était en détection automatique, utiliser la langue détectée
+        if (langueSourceActuelle.equals("Détection automatique")) {
+            langueSourceActuelle = obtenirNomLangue(derniereLangueSourceDetectee);
+        }
+
+        // Inverser : mettre la traduction dans la zone source
+        zoneTexteSource.setText(traduction);
+
+        // Inverser les sélecteurs de langues
+        comboLangueSource.setValue(langueDestinationActuelle);
+        comboLangueDestination.setValue(langueSourceActuelle);
+
+        // Vider la zone de destination (elle se remplira automatiquement)
+        zoneTexteDestination.clear();
+        labelLangueDetectee.setText("Langue sélectionnée : " + langueDestinationActuelle);
+
+        // Feedback visuel
+        Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
+        String titreOriginal = stage.getTitle();
+        stage.setTitle("🔄 Langues inversées !");
+
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                Platform.runLater(() -> stage.setTitle(titreOriginal));
+            }
+        }, 1500);
+
+        System.out.println("Inversion: " + langueDestinationActuelle + " -> " + langueSourceActuelle);
     }
 
     private String obtenirNomLangue(String codeLangue) {
