@@ -1,6 +1,5 @@
 package net.arkaine;
 
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -43,6 +42,9 @@ public class TraducteurAutomatique extends Application {
     private static final DateTimeFormatter FORMAT_FICHIER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter FORMAT_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private String dernierJourFichier = "";
+
+    // Timer pour la surveillance du clipboard
+    private Timer timerSurveillance;
 
     // Mapping des langues
     private Map<String, String> langues = new HashMap<>();
@@ -146,6 +148,14 @@ public class TraducteurAutomatique extends Application {
             System.out.println("Application focus: " + applicationALeFocus); // Debug
         });
 
+        // Gérer la fermeture de l'application proprement
+        primaryStage.setOnCloseRequest(e -> {
+            System.out.println("Fermeture de l'application...");
+            arreterApplication();
+            Platform.exit();
+            System.exit(0);
+        });
+
         // Créer le dossier de logs s'il n'existe pas
         creerDossierLogs();
 
@@ -202,8 +212,14 @@ public class TraducteurAutomatique extends Application {
     }
 
     private void demarrerSurveillanceClipboard(CheckBox checkboxSurveillance) {
-        Timer timer = new Timer(true);
-        timer.scheduleAtFixedRate(new TimerTask() {
+        // Arrêter le timer précédent s'il existe
+        if (timerSurveillance != null) {
+            timerSurveillance.cancel();
+        }
+
+        // Créer un nouveau timer daemon
+        timerSurveillance = new Timer("ClipboardSurveillance", true);
+        timerSurveillance.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 if (checkboxSurveillance.isSelected()) {
@@ -480,6 +496,27 @@ public class TraducteurAutomatique extends Application {
 
         return resultat;
     }
+
+    /**
+     * Arrêter proprement tous les services en arrière-plan
+     */
+    private void arreterApplication() {
+        System.out.println("Arrêt des services en cours...");
+
+        // Arrêter le timer de surveillance du clipboard
+        if (timerSurveillance != null) {
+            timerSurveillance.cancel();
+            timerSurveillance = null;
+            System.out.println("Timer de surveillance arrêté");
+        }
+
+        // Arrêter tous les autres timers potentiels
+        // (ceux créés pour les délais de traduction et feedback)
+        // Note: Ces timers ont une durée limitée, mais on peut les nettoyer ici si besoin
+
+        System.out.println("Application fermée proprement");
+    }
+
 
     public static void main(String[] args) {
         launch(args);
