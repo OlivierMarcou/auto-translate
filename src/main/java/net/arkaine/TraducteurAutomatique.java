@@ -23,6 +23,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -34,7 +38,7 @@ public class TraducteurAutomatique extends Application {
     private Label labelLangueDetectee;
     private ProgressIndicator indicateurProgres;
     private String dernierTexteClipboard = "";
-    private String sauvegardeClipboard = ""; // Sauvegarder le contenu original
+    private String sauvegardeClipboard = "";
     private boolean applicationALeFocus = false;
     private boolean ignorerProchainClipboard = false;
 
@@ -129,14 +133,12 @@ public class TraducteurAutomatique extends Application {
         // Raccourci clavier global pour copier la traduction
         scene.setOnKeyPressed(e -> {
             if (e.isControlDown() && e.getCode().toString().equals("C")) {
-                // Vérifier si le focus est sur la zone de traduction ou nulle part en particulier
                 if (scene.getFocusOwner() == zoneTexteDestination ||
                         scene.getFocusOwner() == null ||
                         scene.getFocusOwner() == boutonCopier) {
                     copierTraduction();
                     e.consume();
                 }
-                // Si le focus est sur la zone source, laisser le Ctrl+C normal fonctionner
             }
         });
 
@@ -145,7 +147,7 @@ public class TraducteurAutomatique extends Application {
         // Détecter quand l'application a le focus ou le perd
         primaryStage.focusedProperty().addListener((observable, oldValue, newValue) -> {
             applicationALeFocus = newValue;
-            System.out.println("Application focus: " + applicationALeFocus); // Debug
+            System.out.println("Application focus: " + applicationALeFocus);
         });
 
         // Gérer la fermeture de l'application proprement
@@ -165,7 +167,6 @@ public class TraducteurAutomatique extends Application {
         // Traduction automatique quand le texte change
         zoneTexteSource.textProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.trim().isEmpty() && !newValue.equals(oldValue)) {
-                // Délai pour éviter de traduire à chaque caractère
                 Timer timer = new Timer();
                 timer.schedule(new TimerTask() {
                     @Override
@@ -181,7 +182,6 @@ public class TraducteurAutomatique extends Application {
             if (newValue != null && !newValue.equals(oldValue)) {
                 String texte = zoneTexteSource.getText().trim();
                 if (!texte.isEmpty()) {
-                    // Traduire immédiatement avec la nouvelle langue
                     Platform.runLater(() -> traduireTexte());
                 }
             }
@@ -212,12 +212,10 @@ public class TraducteurAutomatique extends Application {
     }
 
     private void demarrerSurveillanceClipboard(CheckBox checkboxSurveillance) {
-        // Arrêter le timer précédent s'il existe
         if (timerSurveillance != null) {
             timerSurveillance.cancel();
         }
 
-        // Créer un nouveau timer daemon
         timerSurveillance = new Timer("ClipboardSurveillance", true);
         timerSurveillance.scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -225,12 +223,10 @@ public class TraducteurAutomatique extends Application {
                 if (checkboxSurveillance.isSelected()) {
                     Platform.runLater(() -> {
                         try {
-                            // NE PAS surveiller le clipboard si l'application a le focus
-                            // ou si on vient de copier quelque chose depuis l'app
                             if (applicationALeFocus || ignorerProchainClipboard) {
                                 if (ignorerProchainClipboard) {
-                                    ignorerProchainClipboard = false; // Reset du flag
-                                    System.out.println("Clipboard ignoré après copie interne"); // Debug
+                                    ignorerProchainClipboard = false;
+                                    System.out.println("Clipboard ignoré après copie interne");
                                 }
                                 return;
                             }
@@ -240,11 +236,10 @@ public class TraducteurAutomatique extends Application {
                                 String contenu = clipboard.getString();
                                 if (contenu != null && !contenu.equals(dernierTexteClipboard)
                                         && contenu.trim().length() > 0) {
-                                    // Sauvegarder le contenu original pour pouvoir le restaurer
                                     sauvegardeClipboard = contenu;
                                     dernierTexteClipboard = contenu;
                                     zoneTexteSource.setText(contenu);
-                                    System.out.println("Nouveau texte détecté: " + contenu.substring(0, Math.min(50, contenu.length())) + "..."); // Debug
+                                    System.out.println("Nouveau texte détecté: " + contenu.substring(0, Math.min(50, contenu.length())) + "...");
                                 }
                             }
                         } catch (Exception e) {
@@ -253,7 +248,7 @@ public class TraducteurAutomatique extends Application {
                     });
                 }
             }
-        }, 1000, 1000); // Vérifier toutes les secondes
+        }, 1000, 1000);
     }
 
     private void traduireTexte() {
@@ -264,16 +259,23 @@ public class TraducteurAutomatique extends Application {
 
         String langueDestination = langues.get(comboLangueDestination.getValue());
 
-        // Créer une tâche en arrière-plan pour la traduction
         Task<String[]> tacheTraduction = new Task<String[]>() {
             @Override
             protected String[] call() throws Exception {
-                // Détecter la langue source
-                String langueSource = detecterLangue(texte);
+                // Essayer d'abord avec l'API MyMemory (plus fiable)
+                try {
+                    String[] resultatMyMemory = traduireAvecMyMemory(texte, langueDestination);
+                    if (resultatMyMemory[1] != null && !resultatMyMemory[1].trim().isEmpty()
+                            && !resultatMyMemory[1].equals("NO QUERY SPECIFIED. EXAMPLE: GET?Q=HELLO&LANGPAIR=EN|IT")) {
+                        return resultatMyMemory;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Erreur MyMemory, essai Google Translate: " + e.getMessage());
+                }
 
-                // Traduire le texte
-                String traduction = traduireAvecGoogleTranslate(texte, langueSource, langueDestination);
-
+                // Fallback vers Google Translate avec parsing amélioré
+                String langueSource = detecterLangueAvecGoogle(texte);
+                String traduction = traduireAvecGoogleTranslateAmeliore(texte, langueSource, langueDestination);
                 return new String[]{langueSource, traduction};
             }
 
@@ -283,14 +285,12 @@ public class TraducteurAutomatique extends Application {
                 String langueSource = resultat[0];
                 String traduction = resultat[1];
 
-                // Mettre à jour l'interface
                 Platform.runLater(() -> {
                     labelLangueDetectee.setText("Langue détectée : " + obtenirNomLangue(langueSource));
                     zoneTexteDestination.setText(traduction);
                     indicateurProgres.setVisible(false);
 
-                    // Enregistrer dans les logs
-                    enregistrerTraduction(texte, traduction, langueSource, langueDestination);
+                    enregistrerTraduction(zoneTexteSource.getText().trim(), traduction, langueSource, langueDestination);
                 });
             }
 
@@ -309,16 +309,45 @@ public class TraducteurAutomatique extends Application {
         threadTraduction.start();
     }
 
-    private String detecterLangue(String texte) throws Exception {
-        // Utilisation de l'API Google Translate pour détecter la langue
-        String url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fr&dt=t&q="
-                + URLEncoder.encode(texte, "UTF-8");
+    /**
+     * Traduction avec l'API MyMemory (plus fiable et gratuite)
+     */
+    private String[] traduireAvecMyMemory(String texte, String langueDestination) throws Exception {
+        // Détecter la langue source d'abord - MyMemory ne supporte pas "auto"
+        String langueSource = detecterLangueSimple(texte);
+
+        // Si la détection simple échoue, essayer avec Google
+        if (langueSource.equals("auto")) {
+            try {
+                langueSource = detecterLangueAvecGoogle(texte);
+                System.out.println("Langue détectée par Google: " + langueSource);
+            } catch (Exception e) {
+                System.err.println("Détection Google échouée, utilisation de 'en' par défaut");
+                langueSource = "en"; // Par défaut anglais
+            }
+        }
+
+        // Vérifier que la langue source n'est pas "auto"
+        if (langueSource.equals("auto")) {
+            langueSource = "en"; // Fallback vers anglais
+        }
+
+        System.out.println("Langue source pour MyMemory: " + langueSource + " -> " + langueDestination);
+
+        // Construire l'URL pour MyMemory
+        String langpair = langueSource + "|" + langueDestination;
+        String url = "https://api.mymemory.translated.net/get?q="
+                + URLEncoder.encode(texte, "UTF-8")
+                + "&langpair=" + langpair;
 
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (JavaFX Translation App)");
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(10000);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(connection.getInputStream(), "UTF-8"));
         StringBuilder response = new StringBuilder();
         String line;
 
@@ -327,26 +356,66 @@ public class TraducteurAutomatique extends Application {
         }
         reader.close();
 
-        // Parser la réponse JSON pour extraire la langue détectée
-        String jsonResponse = response.toString();
-        // La langue détectée se trouve généralement à la fin de la réponse JSON
-        String[] parts = jsonResponse.split(",");
-        for (String part : parts) {
-            if (part.contains("\"") && part.length() == 4) {
-                return part.replace("\"", "");
+        // Parser la réponse JSON avec Gson
+        JsonObject jsonResponse = JsonParser.parseString(response.toString()).getAsJsonObject();
+
+        if (jsonResponse.has("responseData") && !jsonResponse.get("responseData").isJsonNull()) {
+            JsonObject responseData = jsonResponse.getAsJsonObject("responseData");
+            if (responseData.has("translatedText")) {
+                String traduction = responseData.get("translatedText").getAsString();
+                System.out.println("Traduction MyMemory réussie: " + traduction.substring(0, Math.min(50, traduction.length())));
+                return new String[]{langueSource, traduction};
             }
         }
 
-        return "auto"; // Langue par défaut si détection échoue
+        throw new Exception("Réponse MyMemory invalide");
     }
 
-    private String traduireAvecGoogleTranslate(String texte, String langueSource, String langueDestination) throws Exception {
+    /**
+     * Détection simple de langue basée sur des patterns
+     */
+    private String detecterLangueSimple(String texte) {
+        texte = texte.toLowerCase().trim();
+
+        // Patterns pour détecter les langues courantes
+        if (texte.matches(".*\\b(the|and|or|but|in|on|at|to|for|with|by)\\b.*")) {
+            return "en";
+        }
+        if (texte.matches(".*\\b(le|la|les|et|ou|mais|dans|sur|pour|avec|par|de|du|des)\\b.*")) {
+            return "fr";
+        }
+        if (texte.matches(".*\\b(el|la|los|las|y|o|pero|en|con|por|para|de|del)\\b.*")) {
+            return "es";
+        }
+        if (texte.matches(".*\\b(der|die|das|und|oder|aber|in|auf|mit|von|zu)\\b.*")) {
+            return "de";
+        }
+
+        // Pattern pour détecter si c'est probablement de l'anglais (beaucoup de mots courts)
+        String[] words = texte.split("\\s+");
+        int shortWords = 0;
+        for (String word : words) {
+            if (word.length() <= 3) shortWords++;
+        }
+        if (shortWords > words.length * 0.3) {
+            return "en";
+        }
+
+        return "auto"; // Langue inconnue
+    }
+
+    /**
+     * Version améliorée de la traduction Google avec parsing JSON robuste
+     */
+    private String traduireAvecGoogleTranslateAmeliore(String texte, String langueSource, String langueDestination) throws Exception {
         String url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + langueSource
                 + "&tl=" + langueDestination + "&dt=t&q=" + URLEncoder.encode(texte, "UTF-8");
 
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (JavaFX Translation App)");
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(10000);
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
         StringBuilder response = new StringBuilder();
@@ -357,23 +426,112 @@ public class TraducteurAutomatique extends Application {
         }
         reader.close();
 
-        // Parser la réponse JSON
         String jsonResponse = response.toString();
-        return extraireTraduction(jsonResponse);
+        return extraireTraductionAmeliore(jsonResponse);
     }
 
-    private String extraireTraduction(String jsonResponse) {
+    /**
+     * Extraction améliorée de la traduction avec parsing JSON robuste
+     */
+    private String extraireTraductionAmeliore(String jsonResponse) {
         try {
-            // Parsing simple de la réponse JSON de Google Translate
-            String[] parts = jsonResponse.split("\\[\\[\\[\"");
-            if (parts.length > 1) {
-                String traduction = parts[1].split("\"")[0];
-                return traduction.replace("\\n", "\n");
+            System.out.println("Réponse JSON brute: " + jsonResponse.substring(0, Math.min(200, jsonResponse.length())) + "...");
+
+            // Essayer d'abord le parsing JSON avec Gson
+            try {
+                JsonArray jsonArray = JsonParser.parseString(jsonResponse).getAsJsonArray();
+                if (jsonArray.size() > 0 && jsonArray.get(0).isJsonArray()) {
+                    JsonArray translationsArray = jsonArray.get(0).getAsJsonArray();
+                    StringBuilder traduction = new StringBuilder();
+
+                    for (JsonElement element : translationsArray) {
+                        if (element.isJsonArray()) {
+                            JsonArray translationPart = element.getAsJsonArray();
+                            if (translationPart.size() > 0) {
+                                traduction.append(translationPart.get(0).getAsString());
+                            }
+                        }
+                    }
+
+                    if (traduction.length() > 0) {
+                        String result = traduction.toString().trim();
+                        System.out.println("Traduction extraite avec Gson: " + result);
+                        return result;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Parsing Gson échoué, essai regex: " + e.getMessage());
             }
+
+            // Fallback avec regex plus robuste
+            Pattern pattern = Pattern.compile("\\[\\[\\[\"([^\"]+)\"", Pattern.DOTALL);
+            Matcher matcher = pattern.matcher(jsonResponse);
+
+            StringBuilder traduction = new StringBuilder();
+            while (matcher.find()) {
+                traduction.append(matcher.group(1));
+            }
+
+            if (traduction.length() > 0) {
+                String result = traduction.toString()
+                        .replace("\\n", "\n")
+                        .replace("\\\"", "\"")
+                        .replace("\\\\", "\\");
+                System.out.println("Traduction extraite avec regex: " + result);
+                return result;
+            }
+
+            // Dernière tentative avec split amélioré
+            if (jsonResponse.contains("[[\"")) {
+                String[] parts = jsonResponse.split("\\[\\[\\[\"");
+                if (parts.length > 1) {
+                    String[] subParts = parts[1].split("\"");
+                    if (subParts.length > 0) {
+                        String result = subParts[0].replace("\\n", "\n");
+                        System.out.println("Traduction extraite avec split: " + result);
+                        return result;
+                    }
+                }
+            }
+
         } catch (Exception e) {
             System.err.println("Erreur lors de l'extraction de la traduction: " + e.getMessage());
+            e.printStackTrace();
         }
-        return "Erreur lors de la traduction";
+
+        return "Erreur lors de l'extraction de la traduction";
+    }
+
+    private String detecterLangueAvecGoogle(String texte) throws Exception {
+        String url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q="
+                + URLEncoder.encode(texte.substring(0, Math.min(100, texte.length())), "UTF-8");
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        // Extraction améliorée de la langue détectée
+        String jsonResponse = response.toString();
+        Pattern langPattern = Pattern.compile("\"([a-z]{2})\"(?=,null,null,)");
+        Matcher matcher = langPattern.matcher(jsonResponse);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        // Fallback
+        return detecterLangueSimple(texte);
     }
 
     private String obtenirNomLangue(String codeLangue) {
@@ -388,22 +546,18 @@ public class TraducteurAutomatique extends Application {
     private void copierTraduction() {
         String traduction = zoneTexteDestination.getText();
         if (!traduction.trim().isEmpty()) {
-            // Marquer qu'on va modifier le clipboard depuis l'application
             ignorerProchainClipboard = true;
 
             ClipboardContent contenu = new ClipboardContent();
             contenu.putString(traduction);
             Clipboard.getSystemClipboard().setContent(contenu);
 
-            // Mettre à jour le dernier contenu connu pour éviter la re-détection
             dernierTexteClipboard = traduction;
 
-            // Feedback visuel discret dans la barre de titre
             Stage stage = (Stage) zoneTexteDestination.getScene().getWindow();
             String titreOriginal = stage.getTitle();
             stage.setTitle("✅ Traduction copiée!");
 
-            // Restaurer le titre après 2 secondes
             Timer timer = new Timer();
             timer.schedule(new TimerTask() {
                 @Override
@@ -412,13 +566,10 @@ public class TraducteurAutomatique extends Application {
                 }
             }, 2000);
 
-            System.out.println("Traduction copiée: " + traduction.substring(0, Math.min(50, traduction.length())) + "..."); // Debug
+            System.out.println("Traduction copiée: " + traduction.substring(0, Math.min(50, traduction.length())) + "...");
         }
     }
 
-    /**
-     * Créer le dossier de logs s'il n'existe pas
-     */
     private void creerDossierLogs() {
         try {
             Files.createDirectories(Paths.get("logs"));
@@ -428,23 +579,17 @@ public class TraducteurAutomatique extends Application {
         }
     }
 
-    /**
-     * Enregistrer la traduction dans le fichier CSV du jour
-     */
     private void enregistrerTraduction(String texteSource, String traduction, String langueSource, String langueDestination) {
         try {
             LocalDateTime maintenant = LocalDateTime.now();
             String jourActuel = maintenant.format(FORMAT_FICHIER);
             String timestamp = maintenant.format(FORMAT_TIMESTAMP);
 
-            // Nom du fichier avec timestamp du jour
             String nomFichier = "logs/traductions_" + jourActuel + ".csv";
 
-            // Vérifier si c'est un nouveau jour (nouveau fichier)
             boolean nouveauFichier = !jourActuel.equals(dernierJourFichier);
             dernierJourFichier = jourActuel;
 
-            // Préparer la ligne CSV (échapper les guillemets et virgules)
             String texteSourceEchappe = echapperCSV(texteSource);
             String traductionEchappee = echapperCSV(traduction);
             String langueSourceNom = obtenirNomLangue(langueSource);
@@ -458,17 +603,13 @@ public class TraducteurAutomatique extends Application {
             ligne.append("\"").append(langueDestinationNom).append("\"");
             ligne.append(System.lineSeparator());
 
-            // Écrire dans le fichier
             if (nouveauFichier && !Files.exists(Paths.get(nomFichier))) {
-                // Nouveau fichier : ajouter l'en-tête CSV
                 String entete = "\"Timestamp\",\"Texte Source\",\"Traduction\",\"Langue Source\",\"Langue Destination\"" + System.lineSeparator();
                 Files.write(Paths.get(nomFichier), entete.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 System.out.println("Nouveau fichier de logs créé: " + nomFichier);
             }
 
-            // Ajouter la ligne de traduction
             Files.write(Paths.get(nomFichier), ligne.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-
             System.out.println("Traduction enregistrée dans: " + nomFichier);
 
         } catch (Exception e) {
@@ -477,19 +618,12 @@ public class TraducteurAutomatique extends Application {
         }
     }
 
-    /**
-     * Échapper les caractères spéciaux pour CSV (guillemets, virgules, retours à la ligne)
-     */
     private String echapperCSV(String texte) {
         if (texte == null) return "";
 
-        // Remplacer les guillemets par des guillemets doublés
         String resultat = texte.replace("\"", "\"\"");
-
-        // Remplacer les retours à la ligne par des espaces
         resultat = resultat.replace("\n", " ").replace("\r", " ");
 
-        // Limiter la longueur pour éviter les lignes trop longues
         if (resultat.length() > 1000) {
             resultat = resultat.substring(0, 997) + "...";
         }
@@ -497,26 +631,17 @@ public class TraducteurAutomatique extends Application {
         return resultat;
     }
 
-    /**
-     * Arrêter proprement tous les services en arrière-plan
-     */
     private void arreterApplication() {
         System.out.println("Arrêt des services en cours...");
 
-        // Arrêter le timer de surveillance du clipboard
         if (timerSurveillance != null) {
             timerSurveillance.cancel();
             timerSurveillance = null;
             System.out.println("Timer de surveillance arrêté");
         }
 
-        // Arrêter tous les autres timers potentiels
-        // (ceux créés pour les délais de traduction et feedback)
-        // Note: Ces timers ont une durée limitée, mais on peut les nettoyer ici si besoin
-
         System.out.println("Application fermée proprement");
     }
-
 
     public static void main(String[] args) {
         launch(args);

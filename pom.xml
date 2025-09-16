@@ -24,7 +24,6 @@
         </dependency>
 
         <!-- JavaFX Controls -->
-
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
@@ -37,10 +36,6 @@
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
         </dependency>
-
-        <!-- HTTP Client intégré à Java 11+ -->
-
-        <!-- HTTP Client intégré à Java 11+ -->
     </dependencies>
 
     <!-- Profils pour différents environnements -->
