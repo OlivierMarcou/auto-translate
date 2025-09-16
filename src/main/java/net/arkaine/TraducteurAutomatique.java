@@ -1,34 +1,27 @@
 package net.arkaine;
 
+import com.formdev.flatlaf.FlatDarculaLaf;
+import com.formdev.flatlaf.FlatIntelliJLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.concurrent.Task;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.*;
-import javafx.scene.image.WritableImage;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 
 import javax.imageio.ImageIO;
+import javax.swing.*;
+import javax.swing.Timer;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.text.DefaultCaret;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -41,21 +34,30 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TraducteurAutomatique extends Application {
+public class TraducteurAutomatique extends JFrame {
 
-    private TextArea zoneTexteSource;
-    private TextArea zoneTexteDestination;
-    private ComboBox<String> comboLangueSource;
-    private ComboBox<String> comboLangueDestination;
-    private Label labelLangueDetectee;
-    private ProgressIndicator indicateurProgres;
+    // Composants UI
+    private JTextArea zoneTexteSource;
+    private JTextArea zoneTexteDestination;
+    private JComboBox<String> comboLangueSource;
+    private JComboBox<String> comboLangueDestination;
+    private JLabel labelLangueDetectee;
+    private JProgressBar barreProgression;
+    private JButton boutonTraduire;
+    private JButton boutonInverser;
+    private JButton boutonCapture;
+    private JButton boutonCopier;
+    private JCheckBox checkboxSurveillance;
+
+    // Variables d'état
     private String derniereLangueSourceDetectee = "en";
     private String dernierTexteClipboard = "";
     private String sauvegardeClipboard = "";
-    private boolean applicationALeFocus = false;
+    private boolean applicationALeFocus = true;
     private boolean ignorerProchainClipboard = false;
 
     // Système de logging
@@ -65,187 +67,17 @@ public class TraducteurAutomatique extends Application {
 
     // Timer pour la surveillance du clipboard
     private Timer timerSurveillance;
+    private Timer timerTraductionDelai;
 
     // Mapping des langues
     private Map<String, String> langues = new HashMap<>();
 
-    @Override
-    public void start(Stage primaryStage) {
+    public TraducteurAutomatique() {
         initLangues();
-
-        primaryStage.setTitle("Traducteur Automatique");
-
-        // Interface utilisateur
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(15));
-
-        // Zone de sélection des langues avec bouton d'inversion
-        HBox boxLangues = new HBox(10);
-        boxLangues.setStyle("-fx-alignment: center-left;");
-
-        // Langue source
-        Label labelSourceLangue = new Label("De :");
-        comboLangueSource = new ComboBox<>();
-        comboLangueSource.getItems().add("Détection automatique");
-        comboLangueSource.getItems().addAll(langues.keySet());
-        comboLangueSource.setValue("Détection automatique"); // Par défaut
-        comboLangueSource.setPrefWidth(150);
-
-        // Bouton d'inversion des langues
-        Button boutonInverser = new Button("⇄");
-        boutonInverser.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 40px;");
-        boutonInverser.setTooltip(new Tooltip("Inverser les langues (source ↔ destination)"));
-        boutonInverser.setOnAction(e -> inverserLangues());
-
-        // Langue destination
-        Label labelDestinationLangue = new Label("Vers :");
-        comboLangueDestination = new ComboBox<>();
-        comboLangueDestination.getItems().addAll(langues.keySet());
-        comboLangueDestination.setValue("Français"); // Par défaut
-        comboLangueDestination.setPrefWidth(150);
-
-        boxLangues.getChildren().addAll(labelSourceLangue, comboLangueSource, boutonInverser,
-                labelDestinationLangue, comboLangueDestination);
-
-        // Zone d'affichage de la langue détectée
-        labelLangueDetectee = new Label("Langue détectée : Aucune");
-        labelLangueDetectee.setStyle("-fx-font-style: italic;");
-
-        // Zone de texte source
-        Label labelTexteSource = new Label("Texte à traduire :");
-        zoneTexteSource = new TextArea();
-        zoneTexteSource.setPrefRowCount(8);
-        zoneTexteSource.setPromptText("Tapez ou collez votre texte ici...");
-
-        // Bouton de traduction manuelle et capture d'écran
-        Button boutonTraduire = new Button("Traduire");
-        boutonTraduire.setOnAction(e -> traduireTexte());
-
-        Button boutonCapture = new Button("📷 Capturer écran");
-        boutonCapture.setStyle("-fx-font-size: 12px;");
-        boutonCapture.setTooltip(new Tooltip("Capturer une zone de l'écran et traduire le texte (OCR)"));
-        boutonCapture.setOnAction(e -> demarrerCaptureEcran());
-
-        // Indicateur de progression
-        indicateurProgres = new ProgressIndicator();
-        indicateurProgres.setVisible(false);
-        indicateurProgres.setPrefSize(30, 30);
-
-        HBox boxBouton = new HBox(10);
-        boxBouton.getChildren().addAll(boutonTraduire, boutonCapture, indicateurProgres);
-
-        // Zone de texte destination
-        Label labelTexteDestination = new Label("Traduction :");
-        zoneTexteDestination = new TextArea();
-        zoneTexteDestination.setPrefRowCount(8);
-        zoneTexteDestination.setEditable(false);
-        zoneTexteDestination.setStyle("-fx-background-color: #f5f5f5;");
-
-        // Bouton copier avec raccourci clavier
-        Button boutonCopier = new Button("Copier la traduction (Ctrl+C)");
-        boutonCopier.setOnAction(e -> copierTraduction());
-
-        // Instructions d'utilisation
-        Label labelInstructions = new Label("💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction automatique\n" +
-                "📷 Capture d'écran: Cliquez sur 'Capturer écran' puis sélectionnez la zone\n" +
-                "🚫 Code source et textes > 5000 caractères filtrés automatiquement");
-        labelInstructions.setStyle("-fx-font-size: 10px; -fx-text-fill: gray; -fx-font-style: italic;");
-
-        // Checkbox pour activer/désactiver la surveillance du presse-papiers
-        CheckBox checkboxSurveillance = new CheckBox("Surveiller le presse-papiers");
-        checkboxSurveillance.setSelected(true);
-
-        // Assemblage de l'interface
-        root.getChildren().addAll(
-                boxLangues,
-                labelLangueDetectee,
-                labelTexteSource,
-                zoneTexteSource,
-                boxBouton,
-                labelTexteDestination,
-                zoneTexteDestination,
-                boutonCopier,
-                new Separator(),
-                checkboxSurveillance,
-                labelInstructions
-        );
-
-        Scene scene = new Scene(new ScrollPane(root), 600, 750);
-        primaryStage.setScene(scene);
-
-        // Raccourci clavier global pour copier la traduction
-        scene.setOnKeyPressed(e -> {
-            if (e.isControlDown() && e.getCode().toString().equals("C")) {
-                if (scene.getFocusOwner() == zoneTexteDestination ||
-                        scene.getFocusOwner() == null ||
-                        scene.getFocusOwner() == boutonCopier) {
-                    copierTraduction();
-                    e.consume();
-                }
-            }
-        });
-
-        primaryStage.show();
-
-        // Détecter quand l'application a le focus ou le perd
-        primaryStage.focusedProperty().addListener((observable, oldValue, newValue) -> {
-            applicationALeFocus = newValue;
-            System.out.println("Application focus: " + applicationALeFocus);
-        });
-
-        // Gérer la fermeture de l'application proprement
-        primaryStage.setOnCloseRequest(e -> {
-            System.out.println("Fermeture de l'application...");
-            arreterApplication();
-            Platform.exit();
-            System.exit(0);
-        });
-
-        // Créer le dossier de logs s'il n'existe pas
+        initUI();
+        setupEvents();
         creerDossierLogs();
-
-        // Démarrer la surveillance du presse-papiers
-        demarrerSurveillanceClipboard(checkboxSurveillance);
-
-        // Traduction automatique quand le texte change
-        zoneTexteSource.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.trim().isEmpty() && !newValue.equals(oldValue)) {
-                Timer timer = new Timer();
-                timer.schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        Platform.runLater(() -> traduireTexte());
-                    }
-                }, 1000);
-            }
-        });
-
-        // Traduction automatique quand la langue source change
-        comboLangueSource.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && !newValue.equals(oldValue)) {
-                String texte = zoneTexteSource.getText().trim();
-                if (!texte.isEmpty()) {
-                    // Mettre à jour l'affichage de la langue détectée
-                    if (newValue.equals("Détection automatique")) {
-                        labelLangueDetectee.setText("Langue détectée : Auto");
-                    } else {
-                        labelLangueDetectee.setText("Langue sélectionnée : " + newValue);
-                    }
-                    // Traduire immédiatement avec la nouvelle langue
-                    Platform.runLater(() -> traduireTexte());
-                }
-            }
-        });
-
-        // Traduction automatique quand la langue de destination change
-        comboLangueDestination.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null && !newValue.equals(oldValue)) {
-                String texte = zoneTexteSource.getText().trim();
-                if (!texte.isEmpty()) {
-                    Platform.runLater(() -> traduireTexte());
-                }
-            }
-        });
+        demarrerSurveillanceClipboard();
     }
 
     private void initLangues() {
@@ -271,44 +103,376 @@ public class TraducteurAutomatique extends Application {
         langues.put("Bulgare", "bg");
     }
 
-    private void demarrerSurveillanceClipboard(CheckBox checkboxSurveillance) {
-        if (timerSurveillance != null) {
-            timerSurveillance.cancel();
+    private void initUI() {
+        setTitle("Traducteur Automatique");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(700, 800);
+        setLocationRelativeTo(null);
+
+        // Configuration du layout principal
+        setLayout(new BorderLayout(10, 10));
+        ((JComponent) getContentPane()).setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        // Panel principal avec scrolling
+        JPanel panelPrincipal = new JPanel();
+        panelPrincipal.setLayout(new BoxLayout(panelPrincipal, BoxLayout.Y_AXIS));
+
+        // === Panel de sélection des langues ===
+        JPanel panelLangues = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        panelLangues.setBorder(new CompoundBorder(
+                new TitledBorder("Sélection des langues"),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
+
+        // Langue source
+        panelLangues.add(new JLabel("De :"));
+        comboLangueSource = new JComboBox<>();
+        comboLangueSource.addItem("Détection automatique");
+        for (String langue : langues.keySet()) {
+            comboLangueSource.addItem(langue);
         }
+        comboLangueSource.setSelectedItem("Détection automatique");
+        comboLangueSource.setPreferredSize(new Dimension(170, 30));
+        panelLangues.add(comboLangueSource);
 
-        timerSurveillance = new Timer("ClipboardSurveillance", true);
-        timerSurveillance.scheduleAtFixedRate(new TimerTask() {
+        // Bouton d'inversion
+        boutonInverser = new JButton("⇄");
+        boutonInverser.setPreferredSize(new Dimension(40, 30));
+        boutonInverser.setFont(new Font(Font.DIALOG, Font.BOLD, 16));
+        boutonInverser.setToolTipText("Inverser les langues (source ↔ destination)");
+        panelLangues.add(boutonInverser);
+
+        // Langue destination
+        panelLangues.add(new JLabel("Vers :"));
+        comboLangueDestination = new JComboBox<>();
+        for (String langue : langues.keySet()) {
+            comboLangueDestination.addItem(langue);
+        }
+        comboLangueDestination.setSelectedItem("Français");
+        comboLangueDestination.setPreferredSize(new Dimension(170, 30));
+        panelLangues.add(comboLangueDestination);
+
+        panelPrincipal.add(panelLangues);
+
+        // === Label de langue détectée ===
+        labelLangueDetectee = new JLabel("Langue détectée : Aucune");
+        labelLangueDetectee.setFont(labelLangueDetectee.getFont().deriveFont(Font.ITALIC));
+        labelLangueDetectee.setBorder(new EmptyBorder(5, 10, 10, 10));
+        panelPrincipal.add(labelLangueDetectee);
+
+        // === Panel texte source ===
+        JPanel panelTexteSource = new JPanel(new BorderLayout(5, 5));
+        panelTexteSource.setBorder(new CompoundBorder(
+                new TitledBorder("Texte à traduire"),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
+
+        zoneTexteSource = new JTextArea(8, 50);
+        zoneTexteSource.setLineWrap(true);
+        zoneTexteSource.setWrapStyleWord(true);
+        zoneTexteSource.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        zoneTexteSource.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        // Auto-scroll vers le bas quand on tape
+        DefaultCaret caretSource = (DefaultCaret) zoneTexteSource.getCaret();
+        caretSource.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+        JScrollPane scrollSource = new JScrollPane(zoneTexteSource);
+        scrollSource.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollSource.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        panelTexteSource.add(scrollSource, BorderLayout.CENTER);
+
+        panelPrincipal.add(panelTexteSource);
+
+        // === Panel boutons d'action ===
+        JPanel panelBoutons = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+
+        boutonTraduire = new JButton("Traduire");
+        boutonTraduire.setPreferredSize(new Dimension(100, 35));
+        panelBoutons.add(boutonTraduire);
+
+        boutonCapture = new JButton("📷 Capturer écran");
+        boutonCapture.setPreferredSize(new Dimension(150, 35));
+        boutonCapture.setToolTipText("Capturer une zone de l'écran et traduire le texte (OCR)");
+        panelBoutons.add(boutonCapture);
+
+        // Barre de progression
+        barreProgression = new JProgressBar();
+        barreProgression.setIndeterminate(true);
+        barreProgression.setVisible(false);
+        barreProgression.setPreferredSize(new Dimension(100, 25));
+        panelBoutons.add(barreProgression);
+
+        panelPrincipal.add(panelBoutons);
+
+        // === Panel texte destination ===
+        JPanel panelTexteDestination = new JPanel(new BorderLayout(5, 5));
+        panelTexteDestination.setBorder(new CompoundBorder(
+                new TitledBorder("Traduction"),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
+
+        zoneTexteDestination = new JTextArea(8, 50);
+        zoneTexteDestination.setLineWrap(true);
+        zoneTexteDestination.setWrapStyleWord(true);
+        zoneTexteDestination.setEditable(false);
+        zoneTexteDestination.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        zoneTexteDestination.setBorder(new EmptyBorder(5, 5, 5, 5));
+
+        // Couleur de fond pour indiquer que c'est non-éditable
+        zoneTexteDestination.setBackground(UIManager.getColor("TextField.inactiveBackground"));
+
+        DefaultCaret caretDest = (DefaultCaret) zoneTexteDestination.getCaret();
+        caretDest.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+        JScrollPane scrollDestination = new JScrollPane(zoneTexteDestination);
+        scrollDestination.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollDestination.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        panelTexteDestination.add(scrollDestination, BorderLayout.CENTER);
+
+        panelPrincipal.add(panelTexteDestination);
+
+        // === Bouton copier ===
+        JPanel panelCopier = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        boutonCopier = new JButton("Copier la traduction (Ctrl+C)");
+        boutonCopier.setPreferredSize(new Dimension(220, 35));
+        panelCopier.add(boutonCopier);
+        panelPrincipal.add(panelCopier);
+
+        // === Panel configuration ===
+        JPanel panelConfig = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        panelConfig.setBorder(BorderFactory.createEtchedBorder());
+
+        checkboxSurveillance = new JCheckBox("Surveiller le presse-papiers", true);
+        panelConfig.add(checkboxSurveillance);
+
+        // Bouton changement de thème
+        JButton boutonTheme = new JButton("🌙 Thème");
+        boutonTheme.setToolTipText("Changer le thème de l'interface");
+        boutonTheme.addActionListener(e -> changerTheme());
+        panelConfig.add(boutonTheme);
+
+        panelPrincipal.add(panelConfig);
+
+        // === Instructions ===
+        JTextArea instructions = new JTextArea(
+                "💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction automatique\n" +
+                        "📷 Capture d'écran: Cliquez sur 'Capturer écran' puis sélectionnez la zone\n" +
+                        "🚫 Code source et textes > 5000 caractères filtrés automatiquement");
+        instructions.setEditable(false);
+        instructions.setOpaque(false);
+        instructions.setFont(instructions.getFont().deriveFont(Font.ITALIC, 11f));
+        instructions.setBorder(new EmptyBorder(10, 10, 10, 10));
+        panelPrincipal.add(instructions);
+
+        // Ajouter le panel principal dans un scroll pane
+        JScrollPane scrollPrincipal = new JScrollPane(panelPrincipal);
+        scrollPrincipal.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPrincipal.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPrincipal.setBorder(null);
+
+        add(scrollPrincipal, BorderLayout.CENTER);
+    }
+
+    private void setupEvents() {
+        // Événements de la fenêtre
+        addWindowFocusListener(new WindowFocusListener() {
             @Override
-            public void run() {
-                if (checkboxSurveillance.isSelected()) {
-                    Platform.runLater(() -> {
-                        try {
-                            if (applicationALeFocus || ignorerProchainClipboard) {
-                                if (ignorerProchainClipboard) {
-                                    ignorerProchainClipboard = false;
-                                    System.out.println("Clipboard ignoré après copie interne");
-                                }
-                                return;
-                            }
+            public void windowGainedFocus(WindowEvent e) {
+                applicationALeFocus = true;
+                System.out.println("Application focus: true");
+            }
 
-                            Clipboard clipboard = Clipboard.getSystemClipboard();
-                            if (clipboard.hasString()) {
-                                String contenu = clipboard.getString();
-                                if (contenu != null && !contenu.equals(dernierTexteClipboard)
-                                        && contenu.trim().length() > 0) {
-                                    sauvegardeClipboard = contenu;
-                                    dernierTexteClipboard = contenu;
-                                    zoneTexteSource.setText(contenu);
-                                    System.out.println("Nouveau texte détecté: " + contenu.substring(0, Math.min(50, contenu.length())) + "...");
-                                }
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Erreur lors de la lecture du presse-papiers: " + e.getMessage());
+            @Override
+            public void windowLostFocus(WindowEvent e) {
+                applicationALeFocus = false;
+                System.out.println("Application focus: false");
+            }
+        });
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.out.println("Fermeture de l'application...");
+                arreterApplication();
+                System.exit(0);
+            }
+        });
+
+        // Événements des boutons
+        boutonTraduire.addActionListener(e -> traduireTexte());
+        boutonInverser.addActionListener(e -> inverserLangues());
+        boutonCapture.addActionListener(e -> demarrerCaptureEcran());
+        boutonCopier.addActionListener(e -> copierTraduction());
+
+        // Traduction automatique avec délai
+        zoneTexteSource.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { planifierTraduction(); }
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { planifierTraduction(); }
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { planifierTraduction(); }
+        });
+
+        // Traduction quand les langues changent
+        comboLangueSource.addActionListener(e -> {
+            SwingUtilities.invokeLater(() -> {
+                String nouveauChoix = (String) comboLangueSource.getSelectedItem();
+                if (nouveauChoix != null) {
+                    String texte = zoneTexteSource.getText().trim();
+                    if (!texte.isEmpty()) {
+                        // Mettre à jour l'affichage
+                        if (nouveauChoix.equals("Détection automatique")) {
+                            labelLangueDetectee.setText("Langue détectée : Auto");
+                        } else {
+                            labelLangueDetectee.setText("Langue sélectionnée : " + nouveauChoix);
                         }
-                    });
+                        traduireTexte();
+                    }
+                }
+            });
+        });
+
+        comboLangueDestination.addActionListener(e -> {
+            String texte = zoneTexteSource.getText().trim();
+            if (!texte.isEmpty()) {
+                SwingUtilities.invokeLater(this::traduireTexte);
+            }
+        });
+
+        // Raccourci clavier Ctrl+C global
+        KeyStroke ctrlC = KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK);
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ctrlC, "copier");
+        getRootPane().getActionMap().put("copier", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+                if (focusOwner == zoneTexteDestination || focusOwner == boutonCopier ||
+                        focusOwner == null || focusOwner == getRootPane()) {
+                    copierTraduction();
                 }
             }
-        }, 1000, 1000);
+        });
+    }
+
+    private void planifierTraduction() {
+        if (timerTraductionDelai != null) {
+            timerTraductionDelai.stop();
+        }
+
+        timerTraductionDelai = new Timer(1000, e -> {
+            String texte = zoneTexteSource.getText().trim();
+            if (!texte.isEmpty()) {
+                traduireTexte();
+            }
+            timerTraductionDelai.stop();
+        });
+        timerTraductionDelai.setRepeats(false);
+        timerTraductionDelai.start();
+    }
+
+    private void changerTheme() {
+        String[] themes = {
+                "FlatLaf Light", "FlatLaf Dark", "FlatLaf IntelliJ",
+                "Arc", "Arc Orange", "Carbon", "Cobalt 2", "Cyan Light",
+                "Dark Flat", "Dark Purple", "Dracula", "GitHub", "Gruvbox Dark",
+                "High Contrast", "Light Flat", "Material Theme UI Lite",
+                "Monokai Pro", "Nord", "One Dark", "Solarized Dark", "Solarized Light"
+        };
+
+        String choix = (String) JOptionPane.showInputDialog(
+                this, "Choisissez un thème :", "Sélection du thème",
+                JOptionPane.QUESTION_MESSAGE, null, themes, themes[0]);
+
+        if (choix != null) {
+            appliquerTheme(choix);
+        }
+    }
+
+    private void appliquerTheme(String nomTheme) {
+        try {
+            LookAndFeel nouveauTheme = switch (nomTheme) {
+                case "FlatLaf Light" -> new FlatLightLaf();
+                case "FlatLaf Dark" -> new FlatDarculaLaf();
+                case "FlatLaf IntelliJ" -> new FlatIntelliJLaf();
+                case "Arc" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatArcIJTheme").getDeclaredConstructor().newInstance();
+                case "Arc Orange" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatArcOrangeIJTheme").getDeclaredConstructor().newInstance();
+                case "Carbon" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatCarbonIJTheme").getDeclaredConstructor().newInstance();
+                case "Cobalt 2" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatCobalt2IJTheme").getDeclaredConstructor().newInstance();
+                case "Cyan Light" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatCyanLightIJTheme").getDeclaredConstructor().newInstance();
+                case "Dark Flat" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatDarkFlatIJTheme").getDeclaredConstructor().newInstance();
+                case "Dark Purple" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatDarkPurpleIJTheme").getDeclaredConstructor().newInstance();
+                case "Dracula" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatDraculaIJTheme").getDeclaredConstructor().newInstance();
+                case "GitHub" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatGitHubIJTheme").getDeclaredConstructor().newInstance();
+                case "Gruvbox Dark" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatGruvboxDarkMediumIJTheme").getDeclaredConstructor().newInstance();
+                case "High Contrast" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatHighContrastIJTheme").getDeclaredConstructor().newInstance();
+                case "Light Flat" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatLightFlatIJTheme").getDeclaredConstructor().newInstance();
+                case "Material Theme UI Lite" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.materialthemeuilite.FlatMaterialLighterIJTheme").getDeclaredConstructor().newInstance();
+                case "Monokai Pro" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatMonokaiProIJTheme").getDeclaredConstructor().newInstance();
+                case "Nord" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatNordIJTheme").getDeclaredConstructor().newInstance();
+                case "One Dark" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatOneDarkIJTheme").getDeclaredConstructor().newInstance();
+                case "Solarized Dark" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatSolarizedDarkIJTheme").getDeclaredConstructor().newInstance();
+                case "Solarized Light" -> (LookAndFeel) Class.forName("com.formdev.flatlaf.intellijthemes.FlatSolarizedLightIJTheme").getDeclaredConstructor().newInstance();
+                default -> new FlatIntelliJLaf();
+            };
+
+            FlatAnimatedLafChange.showSnapshot();
+            UIManager.setLookAndFeel(nouveauTheme);
+            FlatLaf.updateUI();
+            FlatAnimatedLafChange.hideSnapshotWithAnimation();
+
+            // Mettre à jour la couleur de fond de la zone de destination
+            zoneTexteDestination.setBackground(UIManager.getColor("TextField.inactiveBackground"));
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors du changement de thème: " + e.getMessage());
+            JOptionPane.showMessageDialog(this,
+                    "Impossible d'appliquer le thème " + nomTheme + "\n" + e.getMessage(),
+                    "Erreur de thème", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void demarrerSurveillanceClipboard() {
+        if (timerSurveillance != null) {
+            timerSurveillance.stop();
+        }
+
+        timerSurveillance = new Timer(1000, e -> {
+            if (checkboxSurveillance.isSelected() && !applicationALeFocus && !ignorerProchainClipboard) {
+                try {
+                    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                    if (clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)) {
+                        String contenu = (String) clipboard.getData(DataFlavor.stringFlavor);
+                        if (contenu != null && !contenu.equals(dernierTexteClipboard) &&
+                                contenu.trim().length() > 0) {
+
+                            // Vérifications de sécurité pour le clipboard (plus strict)
+                            if (contenu.length() <= 2000 && !ressembleADuCode(contenu)) {
+                                sauvegardeClipboard = contenu;
+                                dernierTexteClipboard = contenu;
+
+                                SwingUtilities.invokeLater(() -> {
+                                    zoneTexteSource.setText(contenu);
+                                    System.out.println("Nouveau texte détecté: " +
+                                            contenu.substring(0, Math.min(50, contenu.length())) + "...");
+                                });
+                            } else {
+                                System.out.println("Texte clipboard ignoré - " +
+                                        (contenu.length() > 2000 ? "trop long (" + contenu.length() + " caractères)" : "code source détecté"));
+                                dernierTexteClipboard = contenu; // Pour éviter de retraiter
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    System.err.println("Erreur lors de la lecture du presse-papiers: " + ex.getMessage());
+                }
+            } else if (ignorerProchainClipboard) {
+                ignorerProchainClipboard = false;
+                System.out.println("Clipboard ignoré après copie interne");
+            }
+        });
+        timerSurveillance.start();
     }
 
     private void traduireTexte() {
@@ -325,15 +489,18 @@ public class TraducteurAutomatique extends Application {
             return;
         }
 
-        String langueDestination = langues.get(comboLangueDestination.getValue());
+        String langueDestination = langues.get((String) comboLangueDestination.getSelectedItem());
 
-        Task<String[]> tacheTraduction = new Task<String[]>() {
-            @Override
-            protected String[] call() throws Exception {
+        // Désactiver les contrôles pendant la traduction
+        boutonTraduire.setEnabled(false);
+        barreProgression.setVisible(true);
+
+        // Traduction asynchrone
+        CompletableFuture.supplyAsync(() -> {
+            try {
                 String langueSource;
+                String langueSourceSelectionnee = (String) comboLangueSource.getSelectedItem();
 
-                // Vérifier si l'utilisateur a sélectionné une langue source manuellement
-                String langueSourceSelectionnee = comboLangueSource.getValue();
                 if (langueSourceSelectionnee != null && !langueSourceSelectionnee.equals("Détection automatique")) {
                     // Utiliser la langue sélectionnée manuellement
                     langueSource = langues.get(langueSourceSelectionnee);
@@ -382,17 +549,24 @@ public class TraducteurAutomatique extends Application {
                 }
 
                 return new String[]{langueSource, traduction};
+
+            } catch (Exception e) {
+                throw new RuntimeException("Erreur lors de la traduction: " + e.getMessage(), e);
             }
+        }).whenComplete((resultat, exception) -> {
+            SwingUtilities.invokeLater(() -> {
+                boutonTraduire.setEnabled(true);
+                barreProgression.setVisible(false);
 
-            @Override
-            protected void succeeded() {
-                String[] resultat = getValue();
-                String langueSource = resultat[0];
-                String traduction = resultat[1];
+                if (exception != null) {
+                    zoneTexteDestination.setText("Erreur lors de la traduction : " + exception.getMessage());
+                    System.err.println("Erreur de traduction: " + exception.getMessage());
+                } else {
+                    String langueSource = resultat[0];
+                    String traduction = resultat[1];
 
-                Platform.runLater(() -> {
                     // Affichage différencié selon le mode
-                    String langueSourceSelectionnee = comboLangueSource.getValue();
+                    String langueSourceSelectionnee = (String) comboLangueSource.getSelectedItem();
                     if (langueSourceSelectionnee != null && !langueSourceSelectionnee.equals("Détection automatique")) {
                         labelLangueDetectee.setText("Langue sélectionnée : " + langueSourceSelectionnee);
                     } else {
@@ -400,28 +574,14 @@ public class TraducteurAutomatique extends Application {
                     }
 
                     zoneTexteDestination.setText(traduction);
-                    indicateurProgres.setVisible(false);
 
                     // Sauvegarder la dernière langue source pour l'inversion
                     derniereLangueSourceDetectee = langueSource;
 
                     enregistrerTraduction(zoneTexteSource.getText().trim(), traduction, langueSource, langueDestination);
-                });
-            }
-
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    zoneTexteDestination.setText("Erreur lors de la traduction : " + getException().getMessage());
-                    indicateurProgres.setVisible(false);
-                });
-            }
-        };
-
-        indicateurProgres.setVisible(true);
-        Thread threadTraduction = new Thread(tacheTraduction);
-        threadTraduction.setDaemon(true);
-        threadTraduction.start();
+                }
+            });
+        });
     }
 
     /**
@@ -430,211 +590,209 @@ public class TraducteurAutomatique extends Application {
     private void demarrerCaptureEcran() {
         try {
             // Minimiser la fenêtre principale temporairement
-            Stage stagePrincipal = (Stage) zoneTexteSource.getScene().getWindow();
-            stagePrincipal.setIconified(true);
+            setExtendedState(JFrame.ICONIFIED);
 
             // Attendre un peu que la fenêtre se minimise
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    Platform.runLater(() -> {
-                        try {
-                            creerOverlaySelection();
-                        } catch (Exception e) {
-                            System.err.println("Erreur lors de la création de l'overlay: " + e.getMessage());
-                            stagePrincipal.setIconified(false); // Restaurer en cas d'erreur
-                        }
-                    });
-                }
-            }, 500);
+            Timer timer = new Timer(500, e -> creerOverlaySelection());
+            timer.setRepeats(false);
+            timer.start();
 
         } catch (Exception e) {
             System.err.println("Erreur lors du démarrage de la capture: " + e.getMessage());
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Erreur de capture");
-            alert.setContentText("Impossible de démarrer la capture d'écran: " + e.getMessage());
-            alert.showAndWait();
+            JOptionPane.showMessageDialog(this,
+                    "Impossible de démarrer la capture d'écran: " + e.getMessage(),
+                    "Erreur de capture", JOptionPane.ERROR_MESSAGE);
         }
     }
+
     /**
-     * Créer l'overlay de sélection - UNE SEULE FENÊTRE couvrant TOUS les écrans
+     * Créer l'overlay de sélection - UNE SEULE fenêtre couvrant TOUS les écrans
      */
-    private void creerOverlaySelection() throws Exception {
-        // Obtenir les dimensions de tous les écrans
-        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice[] screens = ge.getScreenDevices();
+    private void creerOverlaySelection() {
+        try {
+            // Obtenir les dimensions de tous les écrans
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice[] screens = ge.getScreenDevices();
 
-        System.out.println("Nombre d'écrans détectés: " + screens.length);
+            System.out.println("Nombre d'écrans détectés: " + screens.length);
 
-        // Calculer la zone totale de tous les écrans (bounding box)
-        var ref = new Object() {
+            // Calculer la zone totale de tous les écrans (bounding box)
             Rectangle zoneTotale = new Rectangle();
-        };
-        for (int i = 0; i < screens.length; i++) {
-            GraphicsConfiguration config = screens[i].getDefaultConfiguration();
-            Rectangle bounds = config.getBounds();
-            System.out.println("Écran " + i + ": " + bounds);
+            for (int i = 0; i < screens.length; i++) {
+                GraphicsConfiguration config = screens[i].getDefaultConfiguration();
+                Rectangle bounds = config.getBounds();
+                System.out.println("Écran " + i + ": " + bounds);
 
-            if (i == 0) {
-                ref.zoneTotale = new Rectangle(bounds);
-            } else {
-                ref.zoneTotale = ref.zoneTotale.union(bounds);
-            }
-        }
-
-        System.out.println("Zone totale calculée: " + ref.zoneTotale);
-
-        // Créer une capture complète de tous les écrans
-        Robot robot = new Robot();
-        BufferedImage captureComplete = robot.createScreenCapture(ref.zoneTotale);
-
-        // Variables pour la sélection
-        final Rectangle[] zoneSelection = {null};
-        final double[] startX = {0};
-        final double[] startY = {0};
-        final boolean[] isSelecting = {false};
-
-        // Créer UNE SEULE fenêtre qui couvre tous les écrans
-        Stage stageSelection = new Stage();
-        stageSelection.initStyle(StageStyle.TRANSPARENT);
-        stageSelection.setAlwaysOnTop(true);
-
-        // UN SEUL Canvas qui couvre toute la zone
-        Canvas canvas = new Canvas(ref.zoneTotale.width, ref.zoneTotale.height);
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-
-        // Convertir l'image complète pour JavaFX
-        WritableImage fxImageComplete = SwingFXUtils.toFXImage(captureComplete, null);
-
-        // Dessiner l'image de fond assombrie
-        gc.drawImage(fxImageComplete, 0, 0);
-        gc.setFill(Color.color(0, 0, 0, 0.3)); // Overlay semi-transparent
-        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
-        // Gestion des événements souris sur le canvas unifié
-        canvas.setOnMousePressed((MouseEvent e) -> {
-            // Les coordonnées sont directement dans le repère global
-            startX[0] = e.getX() + ref.zoneTotale.x;
-            startY[0] = e.getY() + ref.zoneTotale.y;
-            isSelecting[0] = true;
-            System.out.println("Début sélection globale: " + startX[0] + ", " + startY[0]);
-        });
-
-        canvas.setOnMouseDragged((MouseEvent e) -> {
-            if (isSelecting[0]) {
-                // Coordonnées globales
-                double endX = e.getX() + ref.zoneTotale.x;
-                double endY = e.getY() + ref.zoneTotale.y;
-
-                // Calculer le rectangle de sélection en coordonnées globales
-                double x = Math.min(startX[0], endX);
-                double y = Math.min(startY[0], endY);
-                double w = Math.abs(endX - startX[0]);
-                double h = Math.abs(endY - startY[0]);
-
-                zoneSelection[0] = new Rectangle((int)x, (int)y, (int)w, (int)h);
-
-                // Mettre à jour l'affichage (coordonnées canvas locales)
-                double localX = x - ref.zoneTotale.x;
-                double localY = y - ref.zoneTotale.y;
-                mettreAJourOverlayUnifie(gc, fxImageComplete, localX, localY, w, h);
-            }
-        });
-
-        canvas.setOnMouseReleased((MouseEvent e) -> {
-            if (isSelecting[0] && zoneSelection[0] != null) {
-                isSelecting[0] = false;
-
-                System.out.println("Zone sélectionnée globale: " + zoneSelection[0]);
-
-                // Fermer l'overlay
-                stageSelection.close();
-
-                // Traiter la capture si la sélection est suffisante
-                if (zoneSelection[0].width > 10 && zoneSelection[0].height > 10) {
-                    traiterCaptureZone(zoneSelection[0]);
+                if (i == 0) {
+                    zoneTotale = new Rectangle(bounds);
                 } else {
-                    System.out.println("Sélection trop petite ignorée");
-                    restaurerFenetrePrincipale();
+                    zoneTotale = zoneTotale.union(bounds);
                 }
             }
-        });
 
-        // Échapper pour annuler
-        canvas.setOnKeyPressed(keyEvent -> {
-            if (keyEvent.getCode().getName().equals("ESCAPE")) {
-                stageSelection.close();
-                restaurerFenetrePrincipale();
-            }
-        });
+            System.out.println("Zone totale calculée: " + zoneTotale);
 
-        // Créer la scène
-        VBox root = new VBox();
-        root.getChildren().add(canvas);
-        root.setStyle("-fx-background-color: transparent;");
+            // Créer une capture complète de tous les écrans
+            Robot robot = new Robot();
+            BufferedImage captureComplete = robot.createScreenCapture(zoneTotale);
 
-        Scene scene = new Scene(root, ref.zoneTotale.width, ref.zoneTotale.height);
-        scene.setFill(Color.TRANSPARENT);
-        stageSelection.setScene(scene);
+            // Variables pour la sélection
+            final Rectangle[] zoneSelection = {null};
+            final int[] startX = {0};
+            final int[] startY = {0};
+            final boolean[] isSelecting = {false};
 
-        // Positionner la fenêtre pour couvrir tous les écrans
-        stageSelection.setX(ref.zoneTotale.x);
-        stageSelection.setY(ref.zoneTotale.y);
-        stageSelection.setWidth(ref.zoneTotale.width);
-        stageSelection.setHeight(ref.zoneTotale.height);
+            // Créer UNE SEULE fenêtre qui couvre tous les écrans
+            JWindow overlayWindow = new JWindow();
+            overlayWindow.setAlwaysOnTop(true);
+            overlayWindow.setBounds(zoneTotale);
+            overlayWindow.setBackground(new Color(0, 0, 0, 100)); // Semi-transparent
 
-        // Afficher l'overlay
-        stageSelection.show();
-        canvas.requestFocus();
+            // Panel personnalisé pour la sélection
+            Rectangle finalZoneTotale = zoneTotale;
+            JPanel overlayPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2d = (Graphics2D) g.create();
 
-        System.out.println("Overlay unifié créé couvrant tous les écrans: " + ref.zoneTotale);
-    }
+                    // Dessiner l'image de fond assombrie
+                    g2d.drawImage(captureComplete, -finalZoneTotale.x, -finalZoneTotale.y, null);
+                    g2d.setColor(new Color(0, 0, 0, 80));
+                    g2d.fillRect(0, 0, getWidth(), getHeight());
 
-    /**
-     * Mettre à jour l'overlay unifié avec la sélection courante
-     */
-    private void mettreAJourOverlayUnifie(GraphicsContext gc, WritableImage fxImageComplete,
-                                          double x, double y, double w, double h) {
-        // Redessiner le fond assombri complet
-        gc.clearRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
-        gc.drawImage(fxImageComplete, 0, 0);
-        gc.setFill(Color.color(0, 0, 0, 0.3));
-        gc.fillRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
+                    // Dessiner la zone de sélection si elle existe
+                    if (zoneSelection[0] != null) {
+                        Rectangle sel = zoneSelection[0];
 
-        // Zone claire (sélectionnée)
-        if (w > 0 && h > 0 && x >= 0 && y >= 0 &&
-                x + w <= gc.getCanvas().getWidth() && y + h <= gc.getCanvas().getHeight()) {
+                        // Zone claire (sélectionnée)
+                        int localX = sel.x - finalZoneTotale.x;
+                        int localY = sel.y - finalZoneTotale.y;
 
-            gc.clearRect(x, y, w, h);
-            gc.drawImage(fxImageComplete, x, y, w, h, x, y, w, h);
+                        if (localX >= 0 && localY >= 0 &&
+                                localX + sel.width <= getWidth() && localY + sel.height <= getHeight()) {
 
-            // Bordure de sélection
-            gc.setStroke(Color.RED);
-            gc.setLineWidth(3);
-            gc.strokeRect(x, y, w, h);
+                            // Effacer l'assombrissement dans la zone sélectionnée
+                            g2d.setComposite(AlphaComposite.Clear);
+                            g2d.fillRect(localX, localY, sel.width, sel.height);
 
-            // Afficher les dimensions et position
-            gc.setFill(Color.WHITE);
-            gc.setStroke(Color.BLACK);
-            gc.setLineWidth(1);
-            String info = (int)w + " × " + (int)h + " px";
+                            // Redessiner l'image originale dans la zone
+                            g2d.setComposite(AlphaComposite.SrcOver);
+                            g2d.drawImage(captureComplete.getSubimage(sel.x, sel.y, sel.width, sel.height),
+                                    localX, localY, null);
 
-            // Positionner le texte au-dessus de la sélection
-            double textX = x + 5;
-            double textY = y - 10;
-            if (textY < 20) textY = y + 20; // Si trop près du bord, mettre en dessous
+                            // Bordure de sélection
+                            g2d.setColor(Color.RED);
+                            g2d.setStroke(new BasicStroke(3));
+                            g2d.drawRect(localX, localY, sel.width, sel.height);
 
-            gc.strokeText(info, textX, textY);
-            gc.fillText(info, textX, textY);
+                            // Afficher les dimensions
+                            g2d.setColor(Color.WHITE);
+                            g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+                            String info = sel.width + " × " + sel.height + " px";
 
-            // Croix au centre pour plus de précision
-            gc.setStroke(Color.RED);
-            gc.setLineWidth(1);
-            double centerX = x + w/2;
-            double centerY = y + h/2;
-            gc.strokeLine(centerX - 10, centerY, centerX + 10, centerY);
-            gc.strokeLine(centerX, centerY - 10, centerX, centerY + 10);
+                            int textX = localX + 5;
+                            int textY = localY - 10;
+                            if (textY < 20) textY = localY + 20;
+
+                            // Outline noir pour le texte
+                            g2d.setColor(Color.BLACK);
+                            for (int dx = -1; dx <= 1; dx++) {
+                                for (int dy = -1; dy <= 1; dy++) {
+                                    if (dx != 0 || dy != 0) {
+                                        g2d.drawString(info, textX + dx, textY + dy);
+                                    }
+                                }
+                            }
+                            g2d.setColor(Color.WHITE);
+                            g2d.drawString(info, textX, textY);
+
+                            // Croix au centre
+                            g2d.setColor(Color.RED);
+                            g2d.setStroke(new BasicStroke(1));
+                            int centerX = localX + sel.width / 2;
+                            int centerY = localY + sel.height / 2;
+                            g2d.drawLine(centerX - 10, centerY, centerX + 10, centerY);
+                            g2d.drawLine(centerX, centerY - 10, centerX, centerY + 10);
+                        }
+                    }
+
+                    g2d.dispose();
+                }
+            };
+
+            // Gestion des événements souris
+            Rectangle finalZoneTotale1 = zoneTotale;
+            overlayPanel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    startX[0] = e.getX() + finalZoneTotale1.x;
+                    startY[0] = e.getY() + finalZoneTotale1.y;
+                    isSelecting[0] = true;
+                    System.out.println("Début sélection globale: " + startX[0] + ", " + startY[0]);
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    if (isSelecting[0] && zoneSelection[0] != null) {
+                        isSelecting[0] = false;
+
+                        System.out.println("Zone sélectionnée globale: " + zoneSelection[0]);
+
+                        // Fermer l'overlay
+                        overlayWindow.dispose();
+
+                        // Traiter la capture si la sélection est suffisante
+                        if (zoneSelection[0].width > 10 && zoneSelection[0].height > 10) {
+                            traiterCaptureZone(zoneSelection[0]);
+                        } else {
+                            System.out.println("Sélection trop petite ignorée");
+                            restaurerFenetrePrincipale();
+                        }
+                    }
+                }
+            });
+
+            Rectangle finalZoneTotale2 = zoneTotale;
+            overlayPanel.addMouseMotionListener(new MouseMotionAdapter() {
+                @Override
+                public void mouseDragged(MouseEvent e) {
+                    if (isSelecting[0]) {
+                        int endX = e.getX() + finalZoneTotale2.x;
+                        int endY = e.getY() + finalZoneTotale2.y;
+
+                        int x = Math.min(startX[0], endX);
+                        int y = Math.min(startY[0], endY);
+                        int w = Math.abs(endX - startX[0]);
+                        int h = Math.abs(endY - startY[0]);
+
+                        zoneSelection[0] = new Rectangle(x, y, w, h);
+                        overlayPanel.repaint();
+                    }
+                }
+            });
+
+            // Gestion du clavier pour annuler (Escape)
+            overlayPanel.setFocusable(true);
+            overlayPanel.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                        overlayWindow.dispose();
+                        restaurerFenetrePrincipale();
+                    }
+                }
+            });
+
+            overlayWindow.add(overlayPanel);
+            overlayWindow.setVisible(true);
+            overlayPanel.requestFocusInWindow();
+
+            System.out.println("Overlay unifié créé couvrant tous les écrans: " + zoneTotale);
+
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la création de l'overlay: " + e.getMessage());
+            restaurerFenetrePrincipale();
         }
     }
 
@@ -642,9 +800,8 @@ public class TraducteurAutomatique extends Application {
      * Traiter la capture de la zone sélectionnée
      */
     private void traiterCaptureZone(Rectangle zone) {
-        Task<String> tacheOCR = new Task<String>() {
-            @Override
-            protected String call() throws Exception {
+        CompletableFuture.supplyAsync(() -> {
+            try {
                 // Capturer la zone spécifique
                 Robot robot = new Robot();
                 BufferedImage capture = robot.createScreenCapture(zone);
@@ -662,50 +819,35 @@ public class TraducteurAutomatique extends Application {
                 tempFile.delete();
 
                 return texteExtrait;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Erreur OCR: " + e.getMessage(), e);
             }
-
-            @Override
-            protected void succeeded() {
-                String texte = getValue();
-
-                Platform.runLater(() -> {
-                    if (texte != null && !texte.trim().isEmpty()) {
-                        System.out.println("Texte OCR extrait: " + texte);
-                        zoneTexteSource.setText(texte.trim());
-                        // La traduction se déclenchera automatiquement
-                    } else {
-                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                        alert.setTitle("OCR");
-                        alert.setContentText("Aucun texte détecté dans la capture.\nEssayez avec une image plus nette ou une zone plus grande.");
-                        alert.showAndWait();
-                    }
-                    restaurerFenetrePrincipale();
-                });
-            }
-
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    System.err.println("Erreur OCR: " + getException().getMessage());
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Erreur OCR");
-                    alert.setContentText("Erreur lors de l'extraction du texte: " + getException().getMessage());
-                    alert.showAndWait();
-                    restaurerFenetrePrincipale();
-                });
-            }
-        };
-
-        // Afficher l'indicateur de progression
-        Platform.runLater(() -> {
-            indicateurProgres.setVisible(true);
-            Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
-            stage.setTitle("🔍 Extraction du texte en cours...");
+        }).whenComplete((texte, exception) -> {
+            SwingUtilities.invokeLater(() -> {
+                if (exception != null) {
+                    System.err.println("Erreur OCR: " + exception.getMessage());
+                    JOptionPane.showMessageDialog(this,
+                            "Erreur lors de l'extraction du texte: " + exception.getMessage(),
+                            "Erreur OCR", JOptionPane.ERROR_MESSAGE);
+                } else if (texte != null && !texte.trim().isEmpty()) {
+                    System.out.println("Texte OCR extrait: " + texte);
+                    zoneTexteSource.setText(texte.trim());
+                    // La traduction se déclenchera automatiquement
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "Aucun texte détecté dans la capture.\nEssayez avec une image plus nette ou une zone plus grande.",
+                            "OCR", JOptionPane.INFORMATION_MESSAGE);
+                }
+                restaurerFenetrePrincipale();
+            });
         });
 
-        Thread threadOCR = new Thread(tacheOCR);
-        threadOCR.setDaemon(true);
-        threadOCR.start();
+        // Afficher l'indicateur de progression
+        SwingUtilities.invokeLater(() -> {
+            barreProgression.setVisible(true);
+            setTitle("🔍 Extraction du texte en cours...");
+        });
     }
 
     /**
@@ -735,7 +877,7 @@ public class TraducteurAutomatique extends Application {
             writer.append("Content-Disposition: form-data; name=\"language\"").append("\r\n");
             writer.append("Content-Type: text/plain; charset=UTF-8").append("\r\n");
             writer.append("\r\n");
-            writer.append("eng").append("\r\n"); // Langue par défaut anglais
+            writer.append("eng").append("\r\n");
 
             writer.append("--").append(boundary).append("\r\n");
             writer.append("Content-Disposition: form-data; name=\"isOverlayRequired\"").append("\r\n");
@@ -811,14 +953,13 @@ public class TraducteurAutomatique extends Application {
      * Restaurer la fenêtre principale
      */
     private void restaurerFenetrePrincipale() {
-        Platform.runLater(() -> {
+        SwingUtilities.invokeLater(() -> {
             try {
-                Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
-                stage.setIconified(false);
-                stage.toFront();
-                stage.requestFocus();
-                stage.setTitle("Traducteur Automatique");
-                indicateurProgres.setVisible(false);
+                setExtendedState(JFrame.NORMAL);
+                toFront();
+                requestFocus();
+                setTitle("Traducteur Automatique");
+                barreProgression.setVisible(false);
                 System.out.println("Fenêtre principale restaurée");
             } catch (Exception e) {
                 System.err.println("Erreur lors de la restauration: " + e.getMessage());
@@ -830,7 +971,6 @@ public class TraducteurAutomatique extends Application {
      * Traduction forcée avec MyMemory (langue source spécifiée)
      */
     private String traduireAvecMyMemoryForce(String texte, String langueSource, String langueDestination) throws Exception {
-        // Construire l'URL pour MyMemory avec la langue source spécifiée
         String langpair = langueSource + "|" + langueDestination;
         String url = "https://api.mymemory.translated.net/get?q="
                 + URLEncoder.encode(texte, "UTF-8")
@@ -1215,23 +1355,18 @@ public class TraducteurAutomatique extends Application {
 
         if (texteSource.isEmpty() || traduction.isEmpty()) {
             // Afficher un message temporaire si pas de contenu
-            Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
-            String titreOriginal = stage.getTitle();
-            stage.setTitle("⚠️ Rien à inverser - Traduisez d'abord du texte");
+            String titreOriginal = getTitle();
+            setTitle("⚠️ Rien à inverser - Traduisez d'abord du texte");
 
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    Platform.runLater(() -> stage.setTitle(titreOriginal));
-                }
-            }, 2000);
+            Timer timer = new Timer(2000, e -> setTitle(titreOriginal));
+            timer.setRepeats(false);
+            timer.start();
             return;
         }
 
         // Obtenir les langues actuelles
-        String langueSourceActuelle = comboLangueSource.getValue();
-        String langueDestinationActuelle = comboLangueDestination.getValue();
+        String langueSourceActuelle = (String) comboLangueSource.getSelectedItem();
+        String langueDestinationActuelle = (String) comboLangueDestination.getSelectedItem();
 
         // Si la langue source était en détection automatique, utiliser la langue détectée
         if (langueSourceActuelle.equals("Détection automatique")) {
@@ -1242,25 +1377,20 @@ public class TraducteurAutomatique extends Application {
         zoneTexteSource.setText(traduction);
 
         // Inverser les sélecteurs de langues
-        comboLangueSource.setValue(langueDestinationActuelle);
-        comboLangueDestination.setValue(langueSourceActuelle);
+        comboLangueSource.setSelectedItem(langueDestinationActuelle);
+        comboLangueDestination.setSelectedItem(langueSourceActuelle);
 
         // Vider la zone de destination (elle se remplira automatiquement)
-        zoneTexteDestination.clear();
+        zoneTexteDestination.setText("");
         labelLangueDetectee.setText("Langue sélectionnée : " + langueDestinationActuelle);
 
         // Feedback visuel
-        Stage stage = (Stage) zoneTexteSource.getScene().getWindow();
-        String titreOriginal = stage.getTitle();
-        stage.setTitle("🔄 Langues inversées !");
+        String titreOriginal = getTitle();
+        setTitle("🔄 Langues inversées !");
 
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                Platform.runLater(() -> stage.setTitle(titreOriginal));
-            }
-        }, 1500);
+        Timer timer = new Timer(1500, e -> setTitle(titreOriginal));
+        timer.setRepeats(false);
+        timer.start();
 
         System.out.println("Inversion: " + langueDestinationActuelle + " -> " + langueSourceActuelle);
     }
@@ -1279,23 +1409,17 @@ public class TraducteurAutomatique extends Application {
         if (!traduction.trim().isEmpty()) {
             ignorerProchainClipboard = true;
 
-            ClipboardContent contenu = new ClipboardContent();
-            contenu.putString(traduction);
-            Clipboard.getSystemClipboard().setContent(contenu);
+            StringSelection stringSelection = new StringSelection(traduction);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
 
             dernierTexteClipboard = traduction;
 
-            Stage stage = (Stage) zoneTexteDestination.getScene().getWindow();
-            String titreOriginal = stage.getTitle();
-            stage.setTitle("✅ Traduction copiée!");
+            String titreOriginal = getTitle();
+            setTitle("✅ Traduction copiée!");
 
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    Platform.runLater(() -> stage.setTitle(titreOriginal));
-                }
-            }, 2000);
+            Timer timer = new Timer(2000, e -> setTitle(titreOriginal));
+            timer.setRepeats(false);
+            timer.start();
 
             System.out.println("Traduction copiée: " + traduction.substring(0, Math.min(50, traduction.length())) + "...");
         }
@@ -1366,15 +1490,62 @@ public class TraducteurAutomatique extends Application {
         System.out.println("Arrêt des services en cours...");
 
         if (timerSurveillance != null) {
-            timerSurveillance.cancel();
+            timerSurveillance.stop();
             timerSurveillance = null;
             System.out.println("Timer de surveillance arrêté");
+        }
+
+        if (timerTraductionDelai != null) {
+            timerTraductionDelai.stop();
+            timerTraductionDelai = null;
+            System.out.println("Timer de traduction arrêté");
         }
 
         System.out.println("Application fermée proprement");
     }
 
     public static void main(String[] args) {
-        launch(args);
+        // Configurer le Look and Feel avant de créer l'interface
+        try {
+            // Activer les propriétés système pour FlatLaf
+            System.setProperty("flatlaf.useWindowDecorations", "true");
+            System.setProperty("flatlaf.menuBarEmbedded", "true");
+
+            // Utiliser le thème sombre par défaut
+            UIManager.setLookAndFeel(new FlatIntelliJLaf());
+
+            // Configuration des couleurs personnalisées
+            UIManager.put("Button.arc", 8);
+            UIManager.put("Component.arc", 8);
+            UIManager.put("TextComponent.arc", 8);
+            UIManager.put("ScrollBar.thumbArc", 6);
+            UIManager.put("ScrollBar.thumbInsets", new Insets(2, 2, 2, 2));
+
+        } catch (Exception e) {
+            System.err.println("Impossible d'initialiser FlatLaf, utilisation du thème par défaut: " + e.getMessage());
+            try {
+                // Utiliser le Look and Feel système par défaut
+                for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    if ("Nimbus".equals(info.getName())) {
+                        UIManager.setLookAndFeel(info.getClassName());
+                        break;
+                    }
+                }
+            } catch (Exception ex) {
+                System.err.println("Impossible d'initialiser le thème système: " + ex.getMessage());
+                // Garder le Look and Feel par défaut de Java
+            }
+        }
+
+        // Créer et afficher l'interface utilisateur
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new TraducteurAutomatique().setVisible(true);
+                System.out.println("Application Swing lancée avec succès!");
+            } catch (Exception e) {
+                System.err.println("Erreur lors du lancement de l'application: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
     }
 }

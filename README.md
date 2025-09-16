@@ -1,11 +1,30 @@
-# Traducteur Automatique JavaFX
+# Traducteur Automatique - Version Swing avec FlatLaf
 
-Une application JavaFX moderne de traduction automatique avec surveillance du presse-papiers en temps réel, sélection manuelle des langues, inversion bidirectionnelle et système de logging avancé.
+Une application Java Swing moderne de traduction automatique avec surveillance du presse-papiers en temps réel, sélection manuelle des langues, inversion bidirectionnelle, capture d'écran OCR et système de logging avancé.
 
 ![Java](https://img.shields.io/badge/Java-21-orange.svg)
-![JavaFX](https://img.shields.io/badge/JavaFX-21.0.2-blue.svg)
+![Swing](https://img.shields.io/badge/Swing-Built--in-blue.svg)
+![FlatLaf](https://img.shields.io/badge/FlatLaf-3.4.1-green.svg)
 ![Maven](https://img.shields.io/badge/Maven-3.9+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+## 🆕 Version Swing - Nouveautés
+
+### ✨ Migration de JavaFX vers Swing + FlatLaf
+- **Look moderne** avec FlatLaf (Look and Feel moderne inspiré d'IntelliJ IDEA)
+- **25+ thèmes disponibles** : Arc, Darcula, GitHub, Monokai, Nord, One Dark, Solarized, etc.
+- **Changement de thème à chaud** avec animations fluides
+- **Meilleure compatibilité** avec tous les systèmes d'exploitation
+- **Performance améliorée** et démarrage plus rapide
+- **Interface responsive** qui s'adapte à toutes les tailles d'écran
+
+### 🎨 Interface Utilisateur Moderne
+- **Design épuré** avec bordures arrondies et animations
+- **Thème sombre par défaut** (IntelliJ) avec possibilité de basculer
+- **Icônes et emojis** pour une navigation intuitive
+- **Barres de progression** avec indicateurs visuels
+- **Zones de texte** avec auto-scroll et coloration syntaxique
+- **Tooltips informatifs** sur tous les contrôles
 
 ## 📋 Fonctionnalités
 
@@ -16,11 +35,30 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 - **Filtres de sécurité intelligents** - Protection contre la traduction de code source et textes inappropriés
 - **Inversion des langues (⇄)** - Bouton pour inverser instantanément source ↔ destination avec échange des textes
 - **Surveillance intelligente du presse-papiers** - Traduction automatique de tout texte copié avec filtrage automatique
-- **Changement de langue instantané** - Retraduction automatique lors du changement de langue
+- **Capture d'écran OCR** - Sélection de zone à l'écran pour extraire et traduire du texte
+- **Changement de thème instantané** - Plus de 25 thèmes modernes disponibles
 - **Raccourci clavier intelligent** - `Ctrl+C` contextuel (copie sélection dans zone source, copie traduction ailleurs)
 - **Double API de traduction** - MyMemory (priorité) + Google Translate (fallback) pour une fiabilité maximale
 - **Logging automatique** - Enregistrement de toutes les traductions dans des fichiers CSV quotidiens
-- **Interface moderne** - Design ergonomique et intuitif avec feedback visuel
+- **Interface responsive** - S'adapte à toutes les tailles d'écran et résolutions
+
+### 🎨 Thèmes Disponibles
+- **FlatLaf Light/Dark/IntelliJ** - Thèmes de base modernes
+- **Arc/Arc Orange** - Design inspiré d'Arc Linux
+- **Carbon** - Thème sombre élégant
+- **Cobalt 2** - Couleurs vives sur fond sombre
+- **Cyan Light** - Thème clair avec accents cyan
+- **Dark/Light Flat** - Variantes plates modernes
+- **Dark Purple** - Nuances violettes élégantes
+- **Dracula** - Le célèbre thème vampire
+- **GitHub** - Style GitHub clair/sombre
+- **Gruvbox Dark** - Couleurs chaudes et contrastées
+- **High Contrast** - Accessibilité maximale
+- **Material Theme UI Lite** - Design Material de Google
+- **Monokai Pro** - Couleurs vives sur fond sombre
+- **Nord** - Palette arctique apaisante
+- **One Dark** - Thème Atom populaire
+- **Solarized Light/Dark** - Palette scientifiquement optimisée
 
 ### 🛡️ Filtres de Sécurité Intelligents
 - **Protection contre le code source** : Détection automatique et refus de traduire du code (JavaScript, Java, Python, HTML, CSS, SQL, JSON, etc.)
@@ -28,16 +66,25 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 - **Filtre de caractères spéciaux** : Évite la traduction de données binaires, logs système, ou formats techniques
 - **Messages explicatifs** : Interface claire indiquant pourquoi un texte n'est pas traduit
 - **Surveillance adaptée** : Le clipboard ignore automatiquement le code source sans notification intrusive
+
+### 🔧 Sélection de Langue Source
 - **Mode automatique** (par défaut) : Détection intelligente avec patterns linguistiques + Google Translate
 - **Mode manuel** : Choix explicite de la langue source parmi 20+ langues supportées
 - **Affichage intelligent** : "Langue détectée" vs "Langue sélectionnée" selon le mode
 - **Traduction forcée** : Respecte le choix manuel même si le texte semble être dans une autre langue
 
-### 🔧 Sélection de Langue Source
+### ↔️ Inversion Bidirectionnelle
 - **Bouton ⇄ intuitif** : Situé entre les sélecteurs de langues
 - **Inversion complète** : Échange automatique des textes ET des langues sélectionnées
 - **Gestion intelligente** : Prend en compte le mode de détection (auto/manuel)
 - **Feedback visuel** : Message temporaire "🔄 Langues inversées !" dans la barre de titre
+
+### 📷 Capture d'Écran OCR
+- **Sélection multi-écrans** : Support complet des configurations multi-moniteurs
+- **Interface de sélection** : Overlay semi-transparent avec aperçu en temps réel
+- **Informations visuelles** : Dimensions, coordonnées et croix de centrage
+- **OCR intelligent** : Extraction de texte avec API OCR.space gratuite
+- **Intégration transparente** : Texte extrait automatiquement traduit
 
 ### 🌐 APIs de Traduction Robustes
 - **MyMemory API** (priorité) : Plus stable et fiable pour les textes complexes
@@ -79,65 +126,91 @@ Une application JavaFX moderne de traduction automatique avec surveillance du pr
 ### Prérequis
 - **Java 21** ou supérieur
 - **Maven 3.9** ou supérieur
-- Connexion Internet (pour les traductions)
+- Connexion Internet (pour les traductions et OCR)
 
-### Installation
+### Installation Rapide
 
 1. **Cloner le repository**
    ```bash
-   git clone https://github.com/OlivierMarcou/auto-translate.git
-   cd auto-translate
+   git clone https://github.com/OlivierMarcou/auto-translate-swing.git
+   cd auto-translate-swing
    ```
 
-2. **Compiler le projet**
+2. **Lancement automatique (Windows)**
+   ```bash
+   run.bat
+   ```
+
+3. **Lancement automatique (Linux/Mac)**
+   ```bash
+   chmod +x run.sh
+   ./run.sh
+   ```
+
+### Installation Manuelle
+
+1. **Compiler le projet**
    ```bash
    mvn clean compile
    ```
 
-3. **Exécuter l'application**
+2. **Exécuter directement**
    ```bash
-   mvn javafx:run
+   mvn exec:java -Dexec.mainClass="net.arkaine.TraducteurAutomatique"
    ```
 
-### Alternative : JAR exécutable
+3. **Créer un JAR exécutable**
+   ```bash
+   mvn clean package
+   java -jar target/auto-translate-swing-1.0-SNAPSHOT-jar-with-dependencies.jar
+   ```
 
-```bash
-# Créer un JAR avec toutes les dépendances
-mvn clean package
+## 🖥️ Interface Utilisateur
 
-# Exécuter le JAR
-java -jar target/auto-translate-1.0-SNAPSHOT-shaded.jar
-```
-
-## 🖥️ Utilisation
-
-### Interface Utilisateur Moderne
+### Capture d'Écran Moderne
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ De: [Détection automatique ▼] ⇄ Vers: [Français ▼]              │
-│ Langue détectée : Anglais                                        │
-│                                                                  │
-│ Texte à traduire :                                               │
-│ ┌──────────────────────────────────────────────────────────────┐ │
-│ │ Bonjour, comment allez-vous aujourd'hui ?                   │ │
-│ └──────────────────────────────────────────────────────────────┘ │
-│ [Traduire] ◐                                                    │
-│                                                                  │
-│ Traduction :                                                     │
-│ ┌──────────────────────────────────────────────────────────────┐ │
-│ │ Hello, how are you today?                                    │ │
-│ └──────────────────────────────────────────────────────────────┘ │
-│ [Copier la traduction (Ctrl+C)]                                 │
-│                                                                  │
-│ ─────────────────────────────────────────────────────────────    │
-│ ☑ Surveiller le presse-papiers                                  │
-│ 💡 Astuce: Sélectionnez du texte → Ctrl+C → Traduction auto     │
-│ 🚫 Code source et textes > 5000 caractères filtrés auto         │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ 🌙 Traducteur Automatique                                    ⚙️ 🌙 │
+├────────────────────────────────────────────────────────────────────┤
+│ ┌── Sélection des langues ──────────────────────────────────────── │
+│ │ De: [Détection automatique ▼] ⇄ Vers: [Français ▼]    │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│ Langue détectée : Anglais                                           │
+│                                                                    │
+│ ┌── Texte à traduire ──────────────────────────────────────────── │
+│ │ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ │ Hello, how are you today? I hope you're doing well.         │ │
+│ │ │                                                              │ │
+│ │ └──────────────────────────────────────────────────────────────┘ │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│ [Traduire] [📷 Capturer écran] ●○○○○ (en cours...)                │
+│                                                                    │
+│ ┌── Traduction ────────────────────────────────────────────────── │
+│ │ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ │ Bonjour, comment allez-vous aujourd'hui ? J'espère que      │ │
+│ │ │ vous allez bien.                                             │ │
+│ │ └──────────────────────────────────────────────────────────────┘ │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│ [Copier la traduction (Ctrl+C)]                                   │
+│ ────────────────────────────────────────────────────────────────── │
+│ ☑ Surveiller le presse-papiers    [🌙 Thème]                     │
+│                                                                    │
+│ 💡 Sélectionnez du texte → Ctrl+C → Traduction automatique        │
+│ 📷 Capture : Cliquez 'Capturer écran' puis sélectionnez la zone   │
+│ 🚫 Code source et textes > 5000 caractères filtrés auto           │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### Modes d'utilisation
+### Modes d'Utilisation
+
+#### 🎨 Changement de thème
+- **Menu déroulant** : Plus de 25 thèmes modernes disponibles
+- **Changement à chaud** : Pas besoin de redémarrer l'application
+- **Animations fluides** : Transition en douceur entre les thèmes
+- **Sauvegarde automatique** : Votre thème préféré est mémorisé
 
 #### 🎯 Sélection de langue source
 - **Détection automatique** : Laissez l'IA détecter la langue (recommandé)
@@ -148,6 +221,12 @@ java -jar target/auto-translate-1.0-SNAPSHOT-shaded.jar
 - **Utilisation** : Cliquez sur le bouton ⇄ pour inverser source ↔ destination
 - **Effet** : Échange automatique des textes ET des sélecteurs de langues
 - **Exemple** : EN→FR ("Hello") devient FR→EN ("Bonjour")
+
+#### 📷 Capture d'écran OCR
+- **Multi-écrans** : Fonctionne parfaitement avec plusieurs moniteurs
+- **Sélection précise** : Interface overlay avec dimensions en temps réel
+- **OCR automatique** : Extraction et traduction automatiques du texte
+- **Gestion d'erreurs** : Messages clairs en cas de problème
 
 #### 🛡️ Filtres de sécurité automatiques
 - **Protection contre le code** : JavaScript, Java, Python, HTML, SQL, JSON automatiquement détectés et filtrés
@@ -176,26 +255,28 @@ java -jar target/auto-translate-1.0-SNAPSHOT-shaded.jar
 #### ⌨️ Raccourcis clavier intelligents
 - **`Ctrl+C` dans la zone source** : Copie le texte sélectionné (comportement standard)
 - **`Ctrl+C` ailleurs dans l'app** : Copie toute la traduction
+- **`Échap` dans la capture** : Annule la sélection de zone
 - **Feedback visuel** : Titre de la fenêtre indique "✅ Traduction copiée!" pendant 2 secondes
 
 ## 🛠️ Structure du Projet
 
 ```
-auto-translate/
-├── pom.xml                          # Configuration Maven avec plugins améliorés
+auto-translate-swing/
+├── pom.xml                          # Configuration Maven avec FlatLaf
 ├── README.md                        # Documentation complète
+├── run.bat                          # Script de lancement Windows
+├── run.sh                           # Script de lancement Linux/Mac
 ├── src/
 │   └── main/
-│       ├── java/
-│       │   ├── module-info.java     # Configuration des modules Java
-│       │   └── net/arkaine/
-│       │       └── TraducteurAutomatique.java  # Classe principale avec nouvelles fonctionnalités
-│       └── resources/               # Ressources (icônes, etc.)
+│       └── java/
+│           └── net/arkaine/
+│               └── TraducteurAutomatique.java  # Classe principale Swing
 ├── logs/                           # Dossier des logs (généré automatiquement)
-│   ├── traductions_20250115.csv   # Logs du 15 janvier 2025
 │   ├── traductions_20250116.csv   # Logs du 16 janvier 2025
 │   └── ...                        # Un fichier par jour
 └── target/                         # Fichiers générés par Maven
+    ├── auto-translate-swing-1.0-SNAPSHOT-jar-with-dependencies.jar
+    └── auto-translate-swing-1.0-SNAPSHOT-shaded.jar
 ```
 
 ## 📊 Système de Logging
@@ -205,10 +286,10 @@ Chaque jour, un nouveau fichier CSV est créé dans le dossier `logs/` :
 
 ```csv
 "Timestamp","Texte Source","Traduction","Langue Source","Langue Destination"
-"2025-01-15 14:30:25","Hello world","Bonjour le monde","Anglais","Français"
-"2025-01-15 14:32:10","Como estas","Comment allez-vous","Espagnol","Français"
-"2025-01-15 14:35:42","Guten Tag","Bonjour","Allemand","Français"
-"2025-01-15 14:40:15","Summer Sisters Party...","Fête des Sœurs d'Été...","Anglais","Français"
+"2025-01-16 14:30:25","Hello world","Bonjour le monde","Anglais","Français"
+"2025-01-16 14:32:10","Como estas","Comment allez-vous","Espagnol","Français"
+"2025-01-16 14:35:42","Guten Tag","Bonjour","Allemand","Français"
+"2025-01-16 14:40:15","Summer Sisters Party...","Fête des Sœurs d'Été...","Anglais","Français"
 ```
 
 ### Caractéristiques du logging
@@ -221,25 +302,46 @@ Chaque jour, un nouveau fichier CSV est créé dans le dossier `logs/` :
 
 ## 🔧 Configuration
 
-### Variables d'environnement (optionnel)
-```bash
-# Pour utiliser une API de traduction personnalisée
-export TRANSLATION_API_KEY="votre-clé-api"
-```
+### Personnalisation des thèmes
+Vous pouvez ajouter de nouveaux thèmes en modifiant la méthode `appliquerTheme()` dans `TraducteurAutomatique.java`.
 
-### Personnalisation
-Vous pouvez modifier les langues supportées en éditant la méthode `initLangues()` dans `TraducteurAutomatique.java`.
+### Ajout de langues
+Modifiez la méthode `initLangues()` pour ajouter de nouvelles langues supportées.
+
+### Configuration OCR
+Par défaut, l'application utilise l'API OCR.space gratuite. Vous pouvez modifier la clé API dans la méthode `effectuerOCR()`.
 
 ## 🐛 Résolution de Problèmes
 
 ### Problèmes courants
 
-#### ❌ Erreur "module not found: javafx.controls"
+#### ❌ Erreur "Could not find or load main class"
 ```bash
-# Vérifier que JavaFX est bien installé
-mvn dependency:resolve
-mvn dependency:tree | grep javafx
+# Vérifier que le projet est bien compilé
+mvn clean compile
+
+# Ou utiliser les scripts fournis
+run.bat    # Windows
+./run.sh   # Linux/Mac
 ```
+
+#### ❌ Interface qui ne s'affiche pas correctement
+- ✅ **Résolu** avec FlatLaf : Look moderne et cohérent sur tous les systèmes
+- Essayez un autre thème via le bouton "🌙 Thème"
+- Vérifiez que Java 21+ est installé
+
+#### ❌ Capture d'écran qui ne fonctionne pas
+```bash
+# Vérifier les permissions sur Linux
+xhost +local:
+
+# Sur macOS, autoriser l'accès à l'écran dans Préférences Système
+```
+
+#### ❌ OCR qui ne fonctionne pas
+- Vérifiez votre connexion Internet
+- L'API OCR.space gratuite a des limites de taux
+- Les textes très petits ou flous peuvent ne pas être détectés
 
 #### ❌ L'application traduit du code source ou des données techniques
 - ✅ **Résolu** avec les nouveaux filtres intelligents
@@ -251,29 +353,19 @@ mvn dependency:tree | grep javafx
 - Filtrage silencieux pour la surveillance du clipboard
 
 #### ❌ Textes trop longs qui causent des erreurs
-- ✅ **Résolu** avec le nouveau système dual API (MyMemory + Google)
-- ✅ **Résolu** avec le parsing JSON robuste utilisant Gson
-- La version corrigée gère correctement les textes complexes comme "Summer Sisters Party Gradient..."
-
-#### ❌ Textes trop longs qui causent des erreurs
 - ✅ **Résolu** avec les limites intelligentes
 - Maximum 5000 caractères pour la saisie manuelle
 - Maximum 2000 caractères pour la surveillance du clipboard
 - Message clair indiquant la longueur actuelle et suggestions
 
 #### ❌ Traductions partielles ou incomplètes
-- Utilisez le **mode manuel** : sélectionnez explicitement la langue source
-- La détection automatique est maintenant plus précise avec des patterns linguistiques étendus
-
-#### ❌ Traductions partielles ou incomplètes
 - ✅ **Résolu** avec le nouveau système dual API (MyMemory + Google)
 - ✅ **Résolu** avec le parsing JSON robuste utilisant Gson
-- La version corrigée gère correctement les textes complexes
+- La version Swing gère correctement les textes complexes
 
 #### ❌ Détection de langue incorrecte
-- Vérifiez votre connexion Internet
-- Certains firewalls d'entreprise peuvent bloquer les requêtes vers les APIs de traduction
-- Le système utilise maintenant deux APIs différentes pour plus de robustesse
+- Utilisez le **mode manuel** : sélectionnez explicitement la langue source
+- La détection automatique est maintenant plus précise avec des patterns linguistiques étendus
 
 #### ❌ L'application ne surveille pas le presse-papiers
 - Vérifiez que la case "Surveiller le presse-papiers" est cochée
@@ -285,49 +377,62 @@ mvn dependency:tree | grep javafx
 - Le bouton affichera un message d'avertissement si aucune traduction n'est disponible
 - L'inversion fonctionne avec les deux modes (détection auto et sélection manuelle)
 
+#### ❌ Thème qui ne s'applique pas
+- Tous les thèmes ne sont pas disponibles sur tous les systèmes
+- Essayez "FlatLaf Light", "FlatLaf Dark" ou "FlatLaf IntelliJ" qui fonctionnent partout
+- Redémarrez l'application si nécessaire
+
 ### Logs de débogage
 ```bash
-# Exécuter avec logs détaillés
-mvn javafx:run -X
+# Exécuter avec logs détaillés depuis Maven
+mvn exec:java -Dexec.mainClass="net.arkaine.TraducteurAutomatique" -X
 
-# Observer les messages dans la console
+# Ou directement avec Java
+java -jar target/*.jar 2>&1 | tee debug.log
+
+# Observer les messages dans la console :
 # - "Traduction MyMemory réussie: ..."
 # - "Langue source pour MyMemory: en -> fr"
 # - "Inversion: Français -> Anglais"
 # - "Texte ignoré (code source détecté): class MyClass..."
 # - "Texte ignoré (trop long): 7543 caractères"
+# - "Thème appliqué: FlatLaf Dark"
+# - "Overlay unifié créé couvrant tous les écrans"
 ```
 
-## 🚀 Nouvelles Fonctionnalités v2.0
+## 🚀 Nouvelles Fonctionnalités v2.0 Swing
 
-### 🆕 Ce qui a été ajouté :
+### 🆕 Ce qui a été ajouté par rapport à la version JavaFX :
 
-1. **Sélection manuelle de langue source** 📋
-    - Dropdown "De:" avec "Détection automatique" + toutes les langues
-    - Mode forcé qui respecte le choix utilisateur
+1. **Interface Swing moderne** 🎨
+    - FlatLaf pour un look contemporain
+    - 25+ thèmes disponibles avec changement à chaud
+    - Animations fluides et transitions
 
-2. **Inversion bidirectionnelle** 🔄
-    - Bouton ⇄ entre les sélecteurs
-    - Échange automatique textes + langues
+2. **Meilleure compatibilité système** 🖥️
+    - Fonctionne sur tous les OS sans dépendances externes
+    - Support natif des DPI élevés
+    - Gestion améliorée des multi-écrans
 
-3. **Double API robuste** 🌐
-    - MyMemory (priorité) + Google Translate (fallback)
-    - Parsing JSON avec Gson pour plus de fiabilité
+3. **Performance optimisée** ⚡
+    - Démarrage plus rapide
+    - Consommation mémoire réduite
+    - Threading asynchrone pour toutes les opérations
 
-4. **Interface repensée** 🎨
-    - Layout horizontal pour les langues
-    - Labels distincts et clairs
-    - Feedback visuel amélioré
+4. **Interface utilisateur améliorée** 📱
+    - Layout responsive qui s'adapte à la taille de fenêtre
+    - Barres de progression avec indicateurs visuels
+    - Tooltips informatifs sur tous les contrôles
+    - Messages d'état dans la barre de titre
 
-5. **Filtres de sécurité intelligents** 🛡️
-    - Détection automatique du code source
-    - Limites de longueur (5000/2000 caractères)
-    - Protection contre les données techniques
-    - Messages utilisateur explicatifs
+5. **Gestion d'erreurs robuste** 🛡️
+    - Try-catch complets avec messages utilisateur clairs
+    - Fallbacks automatiques entre APIs
+    - Récupération d'erreurs sans crash
 
 ## 🔒 Sécurité et Confidentialité
 
-- ⚠️ **Attention** : Cette application utilise des APIs gratuites de traduction (MyMemory, Google Translate)
+- ⚠️ **Attention** : Cette application utilise des APIs gratuites de traduction (MyMemory, Google Translate) et OCR (OCR.space)
 - Le texte traduit transit par des serveurs externes
 - **Ne pas utiliser** pour des données sensibles ou confidentielles
 - Pour un usage professionnel, considérez l'utilisation d'APIs de traduction privées ou on-premise
@@ -347,7 +452,7 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - [ ] Interface de consultation des historiques de traductions avec recherche
 - [ ] Statistiques visuelles des langues les plus utilisées
 - [ ] Raccourcis clavier globaux (système)
-- [ ] Mode sombre / thèmes personnalisables
+- [ ] Thèmes personnalisables avec éditeur de couleurs
 - [ ] Détection de la langue par analyse de fichier
 - [ ] Export personnalisé des logs (JSON, XML)
 - [ ] Configuration personnalisable des raccourcis
@@ -355,6 +460,10 @@ Les contributions sont les bienvenues ! Voici comment contribuer :
 - [ ] Cache local pour les traductions fréquentes
 - [ ] Plugin système pour intégration OS
 - [ ] Support de la traduction de documents (PDF, DOCX)
+- [ ] Mode plein écran pour les longues traductions
+- [ ] Dictionnaire personnel avec synonymes
+- [ ] Historique des traductions avec recherche
+- [ ] API REST locale pour intégration dans d'autres apps
 
 ## 📄 License
 
@@ -362,10 +471,11 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 ## 🙏 Remerciements
 
-- [OpenJFX](https://openjfx.io/) - Framework JavaFX
+- [FlatLaf](https://www.formdev.com/flatlaf/) - Look and Feel moderne pour Swing
+- [Gson](https://github.com/google/gson) - Parsing JSON robuste
 - [MyMemory API](https://mymemory.translated.net/) - Service de traduction principal
 - [Google Translate](https://translate.google.com/) - Service de traduction de fallback
-- [Gson](https://github.com/google/gson) - Parsing JSON robuste
+- [OCR.space](https://ocr.space/) - Service OCR gratuit
 - [Maven](https://maven.apache.org/) - Gestionnaire de dépendances
 
 ## 🎯 Workflow Recommandé
@@ -375,14 +485,16 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 📝 Dans l'app : Ctrl+C → 📋 Copie la traduction  
 🔄 Inversion : Clic sur ⇄ → 🔃 Sens inversé
 🎯 Langue forcée : Sélection manuelle → 🎯 Traduction précise
+📷 Capture OCR : Clic sur 📷 → Sélection zone → ✨ Texte extrait et traduit
+🎨 Personnalisation : Clic sur 🌙 → Choix du thème → 🎨 Interface adaptée
 📤 Destination : Ctrl+V → ✅ Colle la traduction
 📊 Analyse : Consultez logs/ pour vos statistiques
 ```
 
 ## 📞 Support
 
-- 🐛 **Issues** : [GitHub Issues](https://github.com/OlivierMarcou/auto-translate/issues)
-- 💬 **wiki** : [GitHub Discussions](https://github.com/OlivierMarcou/auto-translate/wiki)
+- 🐛 **Issues** : [GitHub Issues](https://github.com/OlivierMarcou/auto-translate-swing/issues)
+- 💬 **Discussions** : [GitHub Discussions](https://github.com/OlivierMarcou/auto-translate-swing/discussions)
 - 📧 **Email** : marcou.olivier@gmail.com
 - 📋 **Logs** : Consultez le dossier `logs/` pour le debugging
 
@@ -390,25 +502,31 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 ⭐ **N'oubliez pas de mettre une étoile si ce projet vous a été utile !**
 
-## 📈 Changelog v2.0
+## 📈 Changelog v2.0 Swing
 
-### ✅ Corrections majeures :
+### 🔄 Migration JavaFX → Swing + FlatLaf :
+- **Interface moderne** : Remplacement de JavaFX par Swing + FlatLaf pour un look contemporain
+- **25+ thèmes** : Arc, Darcula, GitHub, Monokai, Nord, One Dark, Solarized, Material, etc.
+- **Animations fluides** : Changement de thème avec transitions en douceur
+- **Meilleure compatibilité** : Fonctionne sur tous les OS sans dépendances externes
+
+### ✅ Corrections majeures conservées :
 - **Fix traductions partielles** : Textes complexes maintenant traduits complètement
 - **Fix détection de langue** : MyMemory n'accepte plus "auto", gestion corrigée
 - **Fix parsing JSON** : Remplacement des split() fragiles par Gson + regex de fallback
 - **Fix sécurité** : Protection contre traduction de code source et données techniques
 - **Fix performance** : Limites intelligentes pour éviter les surcharges réseau
 
-### 🆕 Nouvelles fonctionnalités :
-- **Sélection manuelle langue source** : Dropdown avec "Détection automatique" + 20+ langues
-- **Inversion bidirectionnelle** : Bouton ⇄ pour échanger langues et textes
-- **Double API** : MyMemory (priorité) + Google Translate (fallback)
-- **Interface améliorée** : Layout repensé, labels distincts, feedback visuel
-- **Filtres intelligents** : Détection code source, limite longueur, messages explicatifs
+### 🆕 Nouvelles fonctionnalités Swing :
+- **Threading asynchrone** : CompletableFuture pour toutes les opérations réseau
+- **Interface responsive** : Layout qui s'adapte à toutes les tailles d'écran
+- **Indicateurs visuels** : Barres de progression, messages d'état, tooltips
+- **Gestion d'erreurs robuste** : Messages utilisateur clairs sans crash
+- **Scripts de lancement** : run.bat/run.sh pour démarrage automatique
 
 ### 🔧 Améliorations techniques :
-- **Détection linguistique renforcée** : Patterns étendus + analyse structurelle
-- **Gestion d'erreurs robuste** : Fallbacks multiples entre APIs
-- **Parsing JSON avec Gson** : Plus fiable que les méthodes artisanales
-- **Configuration Maven améliorée** : Plugin shade pour JAR exécutables
-- **Validation des entrées** : Filtres de sécurité et qualité automatiques
+- **Composants Swing natifs** : JTextArea, JComboBox, JButton avec FlatLaf
+- **Gestion du focus** : WindowFocusListener pour surveillance clipboard
+- **Timers Swing** : Remplacement des Timeline JavaFX par javax.swing.Timer
+- **Robot API** : Capture d'écran multi-moniteurs avec JWindow overlay
+- **Configuration Maven** : Plugins exec, assembly et shade pour tous usages
